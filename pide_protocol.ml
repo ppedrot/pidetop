@@ -4,55 +4,62 @@ open Coq_input
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
 
-let commands = ref ([]: (string * (string list -> unit)) list)
+let commands =
+  ref ([]: (string * (unit lazy_t TQueue.t -> string list -> unit)) list)
 
 let register_protocol_command name cmd = commands := (name, cmd) :: !commands
 
-let run_command name args = 
+let run_command name args stmq = 
   let cmd = 
     try List.assoc name !commands 
-    with Not_found -> raise (Failure ("Undefined Coq process command " ^ quote name))
+    with Not_found ->
+       raise (Failure ("Undefined Coq process command " ^ quote name))
   in
-    try cmd args 
+    try cmd stmq args
     with e -> 
       let e = Errors.push e in
-      raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^ Pp.string_of_ppcmds (Errors.print e)))
+      raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^
+                      Pp.string_of_ppcmds (Errors.print e)))
 
 let received_errors = ref []
 
 let initialize_commands () =
-  register_protocol_command "echo" 
-                            (fun args -> List.iter (writeln Position.none) args);
+  register_protocol_command "echo" (fun _ args ->
+     List.iter (writeln Position.none) args);
 
-  register_protocol_command "Document.discontinue_execution"
-                            (fun [] -> ());
+  register_protocol_command "Document.discontinue_execution" (fun stmq _ ->
+    TQueue.clear stmq;
+    Control.interrupt := true);
 
-  register_protocol_command "Document.cancel_execution"
-                            (fun [] -> ());
+  register_protocol_command "Document.cancel_execution" (fun stmq _ ->
+    TQueue.clear stmq;
+    Control.interrupt := true);
 
-  register_protocol_command "Document.define_command" 
-                            (fun [id; _; _; text] -> 
-                              let cmd_id = Pide_document.parse_id id in
-                              let new_state = Pide_document.define_command cmd_id text in
-                              Pide_document.change_state new_state); 
+  register_protocol_command "Document.define_command" (fun stmq args ->
+    match args with
+    | [id;_;_;text] ->
+        let cmd_id = Pide_document.parse_id id in
+        let new_state = Pide_document.define_command cmd_id text in
+        Pide_document.change_state new_state
+    | _ -> assert false); 
 
-  register_protocol_command "Document.update"
-    (fun [old_id_str; new_id_str; edits_yxml] -> 
-      let old_id = Pide_document.parse_id old_id_str in
-      let new_id = Pide_document.parse_id new_id_str in
-      let new_transaction = ref [] in
-      let tip = ref Stateid.dummy in
-      let edits = obtain_edits edits_yxml in
-      Pide_document.change_state (fun state ->
-        let (assignment, t, state') = Pide_document.update old_id new_id edits state in
-        assignment_message new_id assignment;
-        new_transaction := assignment;
-        tip := t;
-        state');
-      Pide_document.execute !new_transaction !tip new_id;
-    )
-
-
+  register_protocol_command "Document.update" (fun stmq args ->
+    match args with
+    | [old_id_str; new_id_str; edits_yxml] -> 
+        let old_id = Pide_document.parse_id old_id_str in
+        let new_id = Pide_document.parse_id new_id_str in
+        let new_transaction = ref [] in
+        let tip = ref Stateid.dummy in
+        let edits = obtain_edits edits_yxml in
+        Pide_document.change_state (fun state ->
+          let (assignment, t, state') =
+            Pide_document.update old_id new_id edits state in
+          assignment_message new_id assignment;
+          new_transaction := assignment;
+          tip := t;
+          state');
+        Pide_document.execute stmq !new_transaction !tip new_id
+    | _ -> assert false)
 
 let (<|>) f1 f2 feedback =
   if f1 feedback then true
@@ -91,8 +98,16 @@ let rest_printer {Feedback.id = id; Feedback.content = content } =
   exec_printer id content (fun exec_id_str msg ->
     match msg with
     | Feedback.GlobRef (loc, _fp, _mp, name, kind) -> 
+(*
         let i, j = Loc.unloc loc in
-        Printf.eprintf "Loc: (%d, %d) name: %s, kind: %s fp: %s %!" i j name kind _fp;
+        Printf.eprintf
+          "Loc: (%d, %d) name: %s, kind: %s fp: %s %!" i j name kind _fp;
+*)
+        true
+    | Feedback.Processed ->
+        let position = Position.id_only exec_id_str in
+        report position [(Yxml.string_of_body [
+          Pide_xml.Elem (("finished", []), [])])];
         true
     | _ -> false)
 
@@ -138,7 +153,7 @@ let glob_printer {Feedback.id = id; Feedback.content = content} =
         let ty = if ty = "prf" then "thm" else  ty in
         def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
     | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
-        let li, lj = Loc.unloc loc in
+        let _li, _lj = Loc.unloc loc in
         lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
           let (i, j) = Loc.unloc loc in
           let (dest_i, dest_j) = Loc.unloc dest in 
@@ -167,18 +182,25 @@ let state_printer ~id _ content =
     true)
 
 let init_printers () =
-  Pp.set_feeder (fun f -> (error_printer <|> goal_printer <|> glob_printer <|> rest_printer) f; ());
-  Pp.set_modern_logger (fun ~id lvl content -> state_printer id lvl content; ())
+  Pp.set_feeder (fun f ->
+    ignore((error_printer<|>goal_printer <|> glob_printer <|> rest_printer) f));
+  Pp.set_modern_logger (fun ~id lvl content ->
+    ignore(state_printer id lvl content))
 
 let initialize () =
   Coq_messages.initialize ();
   init_printers ();
   initialize_commands ()
 
-let rec loop () =
-  match read_command () with
-    None -> ()
+let rec loop stmq =
+  (try match read_command () with
+  | None -> ()
   | Some [] -> error_msg Position.none "Coq process: no input"
   | Some (name :: args) ->
-      (try run_command name args with e -> error_msg Position.none (Printexc.to_string e));
-      loop ()
+      prerr_endline ("got message: "^ name);
+      run_command name args stmq
+  with e when Errors.noncritical e ->
+    let e = Errors.push e in
+    prerr_endline (Printexc.to_string e);
+    error_msg Position.none (Printexc.to_string e));
+  loop stmq
