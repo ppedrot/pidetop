@@ -143,6 +143,8 @@ let add exec_id tip edit_id text =
   try 
     fst (Stm.add ~newtip:exec_id ~ontop:tip true edit_id text)
   with e when Errors.noncritical e ->
+    (* Report error, but continue from the previous tip. This might help 
+     * recovering from parse errors later on in the proof. *)
     let message = Pp.string_of_ppcmds (Errors.print e) in
     let exec_id_string = Stateid.to_string exec_id in
     let pos = match Loc.get_loc e with 
@@ -152,7 +154,7 @@ let add exec_id tip edit_id text =
     Coq_output.error_msg pos message;
     tip
 
-let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state) = 
+let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state) =
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
   let updated = 
