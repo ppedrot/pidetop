@@ -24,6 +24,7 @@ let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
   Flags.make_silent true;
   Pide_slave.init_stdout ();
+  Flags.pide_slave := true;
   args)
 
 let () = Coqtop.toploop_run := Pide_slave.loop
