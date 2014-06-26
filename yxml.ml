@@ -97,7 +97,9 @@ let parse_body source =
 
   (* stack operations *)
 
-  let add x ((elem, body) :: pending) = (elem, x :: body) :: pending
+  let add x = function
+    | [] -> assert false
+    | (elem, body) :: pending -> (elem, x :: body) :: pending
   in
 
   let push name atts pending =
@@ -105,9 +107,11 @@ let parse_body source =
     else ((name, atts), []) :: pending
   in
 
-  let pop (((name, _) as markup, body) :: pending) =
-    if name = "" then err_unbalanced ""
-    else add (Pide_xml.Elem (markup, List.rev body)) pending
+  let pop = function
+    | [] -> assert false
+    | ((name, _) as markup, body) :: pending ->
+        if name = "" then err_unbalanced ""
+        else add (Pide_xml.Elem (markup, List.rev body)) pending
   in
 
   (* parse chunks *)
@@ -115,11 +119,13 @@ let parse_body source =
   let chunks = split false char_X source |> List.map (split true char_Y) in
 
   let parse_chunk = function
+    | [] -> assert false
     | [""; ""] -> pop
     | ("" :: name :: atts) -> push name (List.map parse_attrib atts)
     | txts -> fold (fun s -> add (Pide_xml.Text s)) txts
   in
   match fold parse_chunk chunks [(("", []), [])] with
+  | [] -> assert false
   | [(("", _), result)] -> List.rev result
   | ((name, _), _) :: _ -> err_unbalanced name
 
