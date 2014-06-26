@@ -1,14 +1,14 @@
 Properties
 Markup
 Channel
-Yxml
 Pide_xml
+Yxml
 Coq_markup
 Position
-Coq_input
 Coq_output
 Coq_messages
 Pide_document
+Coq_input
 Pide_protocol
 Pide_slave
 Pide_top

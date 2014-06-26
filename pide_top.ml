@@ -24,7 +24,25 @@ let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
   Flags.make_silent true;
   Pide_slave.init_stdout ();
+  Flags.pide_slave := true;
   args)
 
-let () = Coqtop.toploop_run := Pide_slave.loop
+let stm_queue = TQueue.create ()
+
+let main_loop () =
+  Sys.catch_break true;
+  let t_proto = Thread.create Pide_slave.loop stm_queue in
+  let t_stm = Thread.create (fun () ->
+    while true do
+      let task = TQueue.pop stm_queue in
+      try Control.interrupt := false; Lazy.force task
+      with
+      | Sys.Break -> ()
+      | e -> prerr_endline ("An exception has escaped: "^ Printexc.to_string e)
+    done) () in
+  Thread.join t_proto;
+  Thread.join t_stm
+
+
+let () = Coqtop.toploop_run := main_loop
 

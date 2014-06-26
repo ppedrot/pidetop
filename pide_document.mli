@@ -19,7 +19,8 @@ type node_edit =
 type edit = string * node_edit
 
 val define_command: command_id -> string -> state -> state
-val update: version_id -> version_id -> edit list -> state -> 
+val update:
+  version_id -> version_id -> edit list -> state -> 
   (command_id * exec_id option) list * exec_id * state
 
 (* Executes the given 'transaction': 
@@ -29,7 +30,9 @@ val update: version_id -> version_id -> edit list -> state ->
  *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered.
  *  TODO: Maybe enrich global states to contain STM tip?
  *)
-val execute : (command_id * exec_id option) list -> exec_id  -> version_id -> unit
+val execute :
+  unit lazy_t TQueue.t -> (command_id * exec_id option) list -> exec_id ->
+  version_id -> unit
 
 val change_state: (state -> state) -> unit
 

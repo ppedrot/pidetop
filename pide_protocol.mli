@@ -7,4 +7,4 @@ val initialize : unit -> unit
  * react to messages by pre-installed (by initialize) hooks. 
  * The hooks dispatch their actions to the model maintained by the PIDE document module.
  *)
-val loop : unit -> unit
+val loop : unit lazy_t TQueue.t -> unit
