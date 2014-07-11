@@ -23,8 +23,12 @@ let () = Coqtop.toploop_init := (fun args ->
   let args = parse args in
   Dumpglob.feedback_glob ();
   Flags.make_silent true;
+  Flags.async_proofs_never_reopen_branch := true;
+  Flags.async_proofs_always_delegate := true;
+  Flags.feedback_goals := true;
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
+  Flags.async_proofs_flags_for_workers := ["-feedback-glob"; "-feedback-goals"];
   args)
 
 let stm_queue = TQueue.create ()
