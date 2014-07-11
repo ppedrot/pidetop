@@ -5,14 +5,14 @@ let rec parse = function
        channel it packs fifo_in with fifo_out in the following format:
        fifo_in:fifo_out *)
     (* TODO: put these option outside Flags (they are PIDE specific) *)
-          Flags.pide_fifos := 
+          Pide_flags.pide_fifos := 
             begin match (Str.split (Str.regexp_string ":") fifos) with
             | [fifo_in; fifo_out] -> (fifo_in, fifo_out)
             | _ ->
                prerr_endline "Error: fifo_in:fifo_out expected";
                exit 1
             end;
-          Flags.pide_slave := true;
+          Pide_flags.pide_slave := true;
           Flags.feedback_goals := true;
      parse rest
   | x :: rest -> x :: parse rest
@@ -24,7 +24,7 @@ let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
   Flags.make_silent true;
   Pide_slave.init_stdout ();
-  Flags.pide_slave := true;
+  Pide_flags.pide_slave := true;
   args)
 
 let stm_queue = TQueue.create ()
