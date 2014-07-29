@@ -70,34 +70,45 @@ let (<|>) f1 f2 feedback =
 let exec_printer id msg f=
   match id with
   | Feedback.State exec_id -> 
-      f (Pide_document.print_exec_id exec_id) msg
+      f exec_id (Pide_document.print_exec_id exec_id) msg
   | _ -> false
 
+let already_printed = ref Stateid.Set.empty
+
 let goal_printer {Feedback.id = id; Feedback.content = content} =
-  exec_printer id content (fun exec_id_str msg ->
+  exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
     | Feedback.Goals (loc,goalstate) when Loc.is_ghost loc ->
-        writeln (Position.id_only exec_id_str) goalstate;
+        (if Stateid.Set.mem exec_id !already_printed then ()
+         else (
+           already_printed := Stateid.Set.add exec_id !already_printed;
+           writeln (Position.id_only exec_id_str) goalstate));
         true
     | Feedback.Goals (loc,goalstate) ->
-        let i, j = Loc.unloc loc in
-        writeln (Position.make_id i j exec_id_str) goalstate;
+        (if Stateid.Set.mem exec_id !already_printed then ()
+         else (
+           already_printed := Stateid.Set.add exec_id !already_printed;
+           let i, j = Loc.unloc loc in
+              writeln (Position.make_id i j exec_id_str) goalstate));
         true 
-    | _ -> false )
+    | _ -> false
+    )
 
 let error_printer {Feedback.id = id; Feedback.content = content} =
-  exec_printer id content (fun exec_id_str msg -> 
+  exec_printer id content (fun exec_id exec_id_str msg -> 
     match msg with
     | Feedback.ErrorMsg (loc, txt) ->
       let pos = (if Loc.is_ghost loc then Position.id_only 
                  else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)) 
         exec_id_str in
+      report pos [(Yxml.string_of_body [
+          Pide_xml.Elem (("finished", []), [])])];
       error_msg pos txt;
       true
     | _ -> false  )
 
 let rest_printer {Feedback.id = id; Feedback.content = content } =
-  exec_printer id content (fun exec_id_str msg ->
+  exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
     | Feedback.GlobRef (loc, _fp, _mp, name, kind) -> 
 (*
@@ -146,7 +157,7 @@ let load_globs (f: string) =
     close_in c
 
 let glob_printer {Feedback.id = id; Feedback.content = content} =
-  exec_printer id content (fun exec_id_str msg ->
+  exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
     | Feedback.FileLoaded(dirname, filename) ->
         load_globs filename; true
@@ -179,7 +190,7 @@ let glob_printer {Feedback.id = id; Feedback.content = content} =
     | _ -> false
   )
 let state_printer ~id _ content =
-  exec_printer id content (fun exec_id_str msg -> 
+  exec_printer id content (fun exec_id exec_id_str msg -> 
     writeln (Position.id_only exec_id_str) (Pp.string_of_ppcmds msg);
     true)
 
