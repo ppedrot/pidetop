@@ -4,8 +4,10 @@ open Coq_input
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
 
+type task = [ `Observe | `Add of Stateid.t option lazy_t | `EditAt of Stateid.t ] 
+
 let commands =
-  ref ([]: (string * (unit lazy_t TQueue.t -> string list -> unit)) list)
+  ref ([]: (string * (task TQueue.t -> string list -> unit)) list)
 
 let register_protocol_command name cmd = commands := (name, cmd) :: !commands
 

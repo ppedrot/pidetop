@@ -31,7 +31,7 @@ val update:
  *  TODO: Maybe enrich global states to contain STM tip?
  *)
 val execute :
-  unit lazy_t TQueue.t -> (command_id * exec_id option) list -> exec_id ->
+  Pide_protocol.task TQueue.t -> (command_id * exec_id option) list -> exec_id ->
   version_id -> unit
 
 val change_state: (state -> state) -> unit

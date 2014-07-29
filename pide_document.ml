@@ -167,12 +167,14 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
     (command_execs, tip, state')
 
 let add stmq exec_id tip edit_id text = 
+
+  TQueue.push stmq (`Add (lazy (
   let position = Position.id_only (print_exec_id exec_id) in
   Coq_output.report position [(Yxml.string_of_body [
           Pide_xml.Elem (("running", []), [])])];
-  TQueue.push stmq (lazy (
-  try 
-    ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text)
+  try
+    ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
+    Some exec_id
   with e when Errors.noncritical e ->
     let e = Errors.push e in
     let message = Pp.string_of_ppcmds (Errors.print e) in
@@ -182,19 +184,19 @@ let add stmq exec_id tip edit_id text =
           let i, j = Loc.unloc t in Position.make_id (i+1) (j+1) exec_id_string
       | None -> Position.id_only exec_id_string in
     Coq_output.error_msg pos message;
-    ignore(tip)));
+    None)));
   exec_id
 
-let execute stmq (execs : (command_id * exec_id option) list)  tip version =
+let execute stmq (execs : (command_id * exec_id option) list) tip version =
   let st = !global_state in
-  TQueue.push stmq (lazy (ignore(Stm.edit_at tip)));
-  let final_tip = (List.fold_left (fun curr_tip (cid, eid) -> 
+  TQueue.push stmq (`EditAt tip);
+  let _ = (List.fold_left (fun curr_tip (cid, eid) -> 
       match eid with
       | Some exec_id -> add stmq exec_id curr_tip cid (the_command st cid)
       | None -> curr_tip 
       )
     tip execs) in
-  TQueue.push stmq (lazy (Stm.observe final_tip))
+  TQueue.push stmq `Observe
   
 let initialize () =
   initial_state := Stm.get_current_state ()

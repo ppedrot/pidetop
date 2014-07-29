@@ -37,12 +37,25 @@ let main_loop () =
   Sys.catch_break true;
   let t_proto = Thread.create Pide_slave.loop stm_queue in
   let t_stm = Thread.create (fun () ->
+    let cur_tip = ref None in
+    let skipping = ref false in
     while true do
       let task = TQueue.pop stm_queue in
-      try Control.interrupt := false; Lazy.force task
+      try
+        Control.interrupt := false;
+        match task, !cur_tip with
+        | `EditAt here, _ -> cur_tip := Some here; skipping := false; ignore(Stm.edit_at here)
+        | `Observe, Some id -> cur_tip := None; Stm.observe id
+        | `Observe, None -> ()
+        | `Add _, _ when !skipping -> ()
+        | `Add f, _ -> 
+            match Lazy.force f with
+            | None -> skipping := true
+            | Some tip -> cur_tip := Some tip
       with
       | Sys.Break -> ()
-      | e -> prerr_endline ("An exception has escaped: "^ Printexc.to_string e)
+      | e -> prerr_endline ("An exception has escaped: "^
+               Pp.string_of_ppcmds (Errors.print e))
     done) () in
   Thread.join t_proto;
   Thread.join t_stm
