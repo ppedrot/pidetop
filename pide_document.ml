@@ -24,9 +24,10 @@ let new_id () =
   else raise (Failure "Counter overflow")
 
 
+type perspective = command_id list
 type entries = (command_id * exec_id) list
-type node = Node of entries
-let empty_node = Node []
+type node = Node of entries * perspective
+let empty_node = Node ([], [])
 
 type version = Version of (string * node) list
 let empty_version = Version []
@@ -56,6 +57,7 @@ let print_exec_id = Stateid.to_string
 
 type node_edit = 
   | Edits of (command_id option * command_id option) list
+  | Perspective of command_id list
 
 type edit = string * node_edit
 
@@ -108,17 +110,23 @@ let remove_after hook (entries: entries) =
             else (x, y) :: remove rest
       in remove entries
 
-let edit_node (Node entries) edit =
-    Node
+let edit_node (Node (entries, p)) edit =
+    Node (
     (match edit with
     | (hook, Some id2) -> insert_after hook id2 entries
-    | (hook, None) -> remove_after hook entries)
+    | (hook, None) -> remove_after hook entries), p)
+
+let set_perspective (Node (entries, _)) perspective =
+  Node (entries, perspective)
 
 let edit_nodes (Version nodes) (name, node_edit) =
   Version 
     (match node_edit with
-      | Edits edits -> 
+      | Edits edits ->
           update_node name (fun x -> List.fold_left edit_node x edits) nodes
+      | Perspective commands ->
+          update_node name (fun n -> set_perspective n commands) nodes
+
     )
 
 let put_node (Version nodes) (name, node) =
@@ -142,9 +150,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
   let updated = 
-    new_nodes |> List.map (fun (name, Node entries) ->
+    new_nodes |> List.map (fun (name, Node (entries, perspective)) ->
       if List.mem_assoc name edits then
-        let Node entries0 = get_node old_nodes name in
+        let Node (entries0, perspective0) = get_node old_nodes name in
         let (common, (rest0, rest)) = chop_common entries0 entries in
         let tip = if common = [] then !initial_state else snd (CList.last common) in
         let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
@@ -154,7 +162,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let updated_node =
           match command_execs with
           | [] -> []
-          | _  -> [(name, Node (common @ rest'))] in
+          | _  -> [(name, Node ((common @ rest'), perspective))] in
         (command_execs, tip, updated_node)
       else
         ([], !initial_state, []))
@@ -187,16 +195,39 @@ let add stmq exec_id tip edit_id text =
     None)));
   exec_id
 
+let extract_perspective (Version nodes) : perspective =
+  List.fold_right
+    (fun (n: node) (ps: perspective) -> match n with Node(_, p) -> p @ ps)
+    (List.map snd nodes)
+    []
+
+let to_exec_list (p: perspective) (execs: (command_id * exec_id option) list): exec_id list =
+  List.fold_right
+    (fun (c: command_id) (ps: exec_id list) ->
+      if (List.mem_assoc c execs) then
+        match List.assoc c execs with
+        | None -> ps
+        | Some e -> e :: ps
+      else
+        ps)
+    p
+    []
+
 let execute stmq (execs : (command_id * exec_id option) list) tip version =
   let st = !global_state in
-  TQueue.push stmq (`EditAt tip);
-  let _ = (List.fold_left (fun curr_tip (cid, eid) -> 
+  let p = extract_perspective (the_version st version) in
+  let exec_perspective = to_exec_list p execs in
+  Stm.set_perspective exec_perspective;
+  if (execs <> []) then begin
+    TQueue.push stmq (`EditAt tip);
+    let _ = (List.fold_left (fun curr_tip (cid, eid) ->
       match eid with
       | Some exec_id -> add stmq exec_id curr_tip cid (the_command st cid)
       | None -> curr_tip 
       )
-    tip execs) in
-  TQueue.push stmq `Observe
+      tip execs) in
+    TQueue.push stmq `Observe
+  end
   
 let initialize () =
   initial_state := Stm.get_current_state ()
