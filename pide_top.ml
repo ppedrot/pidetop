@@ -43,11 +43,16 @@ let main_loop () =
       try
         Control.interrupt := false;
         match task, !cur_tip with
-        | `EditAt here, _ -> cur_tip := Some here; skipping := false; ignore(Stm.edit_at here)
-        | `Observe, Some id -> cur_tip := None; Stm.observe id
+        | `EditAt here, _ ->
+           cur_tip := Some here;
+           skipping := false;
+           ignore(Stm.edit_at here)
+        | `Observe, Some id ->
+           cur_tip := None;
+           if not !skipping then Stm.observe id
         | `Observe, None -> ()
         | `Add _, _ when !skipping -> ()
-        | `Add f, _ -> 
+        | `Add f, _ ->
             match Lazy.force f with
             | None -> skipping := true
             | Some tip -> cur_tip := Some tip

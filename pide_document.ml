@@ -183,16 +183,7 @@ let add stmq exec_id tip edit_id text =
   try
     ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
     Some exec_id
-  with e when Errors.noncritical e ->
-    let e = Errors.push e in
-    let message = Pp.string_of_ppcmds (Errors.print e) in
-    let exec_id_string = Stateid.to_string exec_id in
-    let pos = match Loc.get_loc e with 
-      | Some t ->
-          let i, j = Loc.unloc t in Position.make_id (i+1) (j+1) exec_id_string
-      | None -> Position.id_only exec_id_string in
-    Coq_output.error_msg pos message;
-    None)));
+  with e when Errors.noncritical e -> None)));
   exec_id
 
 let extract_perspective (Version nodes) : perspective =
