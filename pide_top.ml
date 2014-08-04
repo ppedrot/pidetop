@@ -18,7 +18,6 @@ let rec parse = function
   | x :: rest -> x :: parse rest
 
 
-
 let () = Coqtop.toploop_init := (fun args ->
   let args = parse args in
   Dumpglob.feedback_glob ();

@@ -16,6 +16,7 @@ val print_exec_id : exec_id -> string
  *)
 type node_edit = 
   | Edits of (command_id option * command_id option) list
+  | Perspective of command_id list
 type edit = string * node_edit
 
 val define_command: command_id -> string -> state -> state

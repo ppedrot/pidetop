@@ -5,15 +5,14 @@ let obtain_edits edits_yxml =
     string
     (variant
      [(function
-       | [], a -> Pide_document.Edits(list (pair (option int) (option int)) a)
+       | [], edits -> Pide_document.Edits(list (pair (option int) (option int)) edits)
        | _ -> assert false);
-      (function
+      (function  (* Document.Node.deps *)
        | [], a -> Pide_document.Edits []
        | _ -> assert false);
       (function
-       | [a], [] -> Pide_document.Edits []
-       | _ -> assert false);
-      (function
-       | a, [] -> Pide_document.Edits []
+       | (_ :: perspective), overlays ->
+        (* Ignored head of list is a 'node-required' argument for Isabelle *)
+           Pide_document.Perspective (List.map (fun cmd_id -> int_of_string cmd_id) perspective)
        | _ -> assert false)])) 
     (Yxml.parse_body edits_yxml))
