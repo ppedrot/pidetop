@@ -197,8 +197,7 @@ let state_printer ~id _ content =
 let init_printers () =
   Pp.set_feeder (fun f ->
     ignore((error_printer<|>goal_printer <|> glob_printer <|> rest_printer) f));
-  Pp.set_modern_logger (fun ~id lvl content ->
-    ignore(state_printer id lvl content))
+  Pp.log_via_feedback ()
 
 let initialize () =
   Coq_messages.initialize ();
