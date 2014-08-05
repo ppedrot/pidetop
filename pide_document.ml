@@ -151,7 +151,7 @@ let rec chop_common (entries0 : entries) (entries1: entries) =
 let initial_state: Stateid.t ref = ref Stateid.dummy
 
 let errors = ref []
-let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state) = 
+let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state): (command_id * exec_id list) list * exec_id * state = 
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
   let updated = 
@@ -162,8 +162,8 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let tip = if common = [] then !initial_state else snd (CList.last common) in
         let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
         let command_execs =
-          List.map (fun (id, _) -> (id, None)) rest0 @
-          List.map (fun (id, exec_id) -> (id, Some exec_id)) rest' in
+          List.map (fun (id, _) -> (id, [])) rest0 @
+          List.map (fun (id, exec_id) -> (id, [exec_id])) rest' in (* TODO: Use overlay to add more exec_ids *)
         let updated_node =
           match command_execs with
           | [] -> []
@@ -196,29 +196,29 @@ let extract_perspective (Version nodes) : perspective =
     (List.map snd nodes)
     []
 
-let to_exec_list (p: perspective) (execs: (command_id * exec_id option) list): exec_id list =
+let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
     (fun (c: command_id) (ps: exec_id list) ->
       if (List.mem_assoc c execs) then
         match List.assoc c execs with
-        | None -> ps
-        | Some e -> e :: ps
+        | [] -> ps
+        | e :: _ -> e :: ps (*FIXME *)
       else
         ps)
     p
     []
 
-let execute stmq (execs : (command_id * exec_id option) list) tip version =
+let execute stmq (execs : (command_id * exec_id list) list) tip version =
   let st = !global_state in
   let p = extract_perspective (the_version st version) in
   let exec_perspective = to_exec_list p execs in
   Stm.set_perspective exec_perspective;
   if (execs <> []) then begin
     TQueue.push stmq (`EditAt tip);
-    let _ = (List.fold_left (fun curr_tip (cid, eid) ->
-      match eid with
-      | Some exec_id -> add stmq exec_id curr_tip cid (the_command st cid)
-      | None -> curr_tip 
+    let _ = (List.fold_left (fun curr_tip (cid, eids) ->
+      match eids with
+      | exec_id::_ -> add stmq exec_id curr_tip cid (the_command st cid) (* FIXME *)
+      | [] -> curr_tip 
       )
       tip execs) in
     TQueue.push stmq `Observe

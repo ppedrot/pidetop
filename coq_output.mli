@@ -14,4 +14,4 @@ val error_msg : Position.t -> string -> unit
 val report : Position.t -> string list -> unit
 
 (* Acknowledgement of an update: takes the version updated to, and a list of command id -> Stateid mappings. *)
-val assignment_message : int -> (int * Stateid.t option) list -> unit
+val assignment_message : int -> (int * Stateid.t list) list -> unit

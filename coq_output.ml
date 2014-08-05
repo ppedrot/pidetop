@@ -36,5 +36,5 @@ let protocol_message = send_message protocolN
 let assignment_message new_id assignment =
   let body = Pide_xml.Encode.(
     let stateid x = int (Stateid.to_int x) in
-    pair int (list (pair int (option stateid))) (new_id, assignment))
+    pair int (list (pair int (list stateid))) (new_id, assignment))
   in protocol_message assign_update body

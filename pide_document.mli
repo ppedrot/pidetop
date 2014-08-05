@@ -27,7 +27,7 @@ type edit = string * node_edit
 val define_command: command_id -> string -> state -> state
 val update:
   version_id -> version_id -> edit list -> state -> 
-  (command_id * exec_id option) list * exec_id * state
+  (command_id * exec_id list) list * exec_id * state
 
 (* Executes the given 'transaction': 
  * the first argument is the list of new assignments, 
@@ -37,7 +37,7 @@ val update:
  *  TODO: Maybe enrich global states to contain STM tip?
  *)
 val execute :
-  Pide_protocol.task TQueue.t -> (command_id * exec_id option) list -> exec_id ->
+  Pide_protocol.task TQueue.t -> (command_id * exec_id list) list -> exec_id ->
   version_id -> unit
 
 val change_state: (state -> state) -> unit
