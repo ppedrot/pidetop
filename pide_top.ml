@@ -49,7 +49,7 @@ let main_loop () =
            ignore(Stm.edit_at here)
         | `Observe, Some id ->
            cur_tip := None;
-           if not !skipping then Stm.observe id
+           Stm.observe id
         | `Observe, None -> ()
         | `Add _, _ when !skipping -> ()
         | `Add f, _ ->
