@@ -190,6 +190,13 @@ let add stmq exec_id tip edit_id text =
   with e when Errors.noncritical e -> None)));
   exec_id
 
+let query stmq at query_id text =
+  TQueue.push stmq (`Query (lazy (
+    let position = Position.id_only (print_exec_id query_id) in
+    Coq_output.report position [(Yxml.string_of_body [
+      Pide_xml.Elem (("running", []), [])])]; (* TODO: potential for refactoring with the add. *)
+    Stm.query ~at:at ~report_with:query_id text)))
+
 let extract_perspective (Version nodes) : perspective =
   List.fold_right
     (fun (n: node) (ps: perspective) -> match n with Node(_, p, _) -> p @ ps)
@@ -202,7 +209,7 @@ let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exe
       if (List.mem_assoc c execs) then
         match List.assoc c execs with
         | [] -> ps
-        | e :: _ -> e :: ps (*FIXME *)
+        | es -> es @ ps
       else
         ps)
     p
@@ -217,7 +224,10 @@ let execute stmq (execs : (command_id * exec_id list) list) tip version =
     TQueue.push stmq (`EditAt tip);
     let _ = (List.fold_left (fun curr_tip (cid, eids) ->
       match eids with
-      | exec_id::_ -> add stmq exec_id curr_tip cid (the_command st cid) (* FIXME *)
+      | exec_id:: overlays ->
+          let new_tip = add stmq exec_id curr_tip cid (the_command st cid) in
+          List.iter (fun oid -> query stmq new_tip oid "") overlays; (* FIXME: find the text of the query in the overlay *)
+          new_tip
       | [] -> curr_tip 
       )
       tip execs) in
