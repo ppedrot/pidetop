@@ -23,11 +23,15 @@ let new_id () =
   if (i > 0) then i
   else raise (Failure "Counter overflow")
 
-
+(* Overlay: print functions on a specific command span. *)
+(* The type encodes the command to print on, the query to execute and its 
+ * arguments *)
+type overlay = (command_id * (string * (string list))) list
 type perspective = command_id list
+
 type entries = (command_id * exec_id) list
-type node = Node of entries * perspective
-let empty_node = Node ([], [])
+type node = Node of entries * perspective * overlay
+let empty_node = Node ([], [], [])
 
 type version = Version of (string * node) list
 let empty_version = Version []
@@ -55,10 +59,10 @@ let parse_id = int_of_string
 let print_id = string_of_int
 let print_exec_id = Stateid.to_string
 
+
 type node_edit = 
   | Edits of (command_id option * command_id option) list
-  | Perspective of command_id list
-
+  | Perspective of (command_id list * overlay)
 type edit = string * node_edit
 
 let define_command id (text: string) (State (versions, commands)) =
@@ -110,22 +114,23 @@ let remove_after hook (entries: entries) =
             else (x, y) :: remove rest
       in remove entries
 
-let edit_node (Node (entries, p)) edit =
+let edit_node (Node (entries, p, o)) edit =
     Node (
     (match edit with
     | (hook, Some id2) -> insert_after hook id2 entries
-    | (hook, None) -> remove_after hook entries), p)
+    | (hook, None) -> remove_after hook entries), p, o)
 
-let set_perspective (Node (entries, _)) perspective =
-  Node (entries, perspective)
+let set_perspective (Node (entries, _, _)) perspective overlay =
+  Node (entries, perspective, overlay)
 
 let edit_nodes (Version nodes) (name, node_edit) =
   Version 
     (match node_edit with
       | Edits edits ->
           update_node name (fun x -> List.fold_left edit_node x edits) nodes
-      | Perspective commands ->
-          update_node name (fun n -> set_perspective n commands) nodes
+      | Perspective (commands, overlay) ->
+          update_node name (fun n ->
+            set_perspective n commands overlay) nodes
 
     )
 
@@ -150,9 +155,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
   let updated = 
-    new_nodes |> List.map (fun (name, Node (entries, perspective)) ->
+    new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
       if List.mem_assoc name edits then
-        let Node (entries0, perspective0) = get_node old_nodes name in
+        let Node (entries0, _, overlay0) = get_node old_nodes name in
         let (common, (rest0, rest)) = chop_common entries0 entries in
         let tip = if common = [] then !initial_state else snd (CList.last common) in
         let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
@@ -162,7 +167,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let updated_node =
           match command_execs with
           | [] -> []
-          | _  -> [(name, Node ((common @ rest'), perspective))] in
+          | _  -> [(name, Node ((common @ rest'), perspective, overlay))] in
         (command_execs, tip, updated_node)
       else
         ([], !initial_state, []))
@@ -175,7 +180,6 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
     (command_execs, tip, state')
 
 let add stmq exec_id tip edit_id text = 
-
   TQueue.push stmq (`Add (lazy (
   let position = Position.id_only (print_exec_id exec_id) in
   Coq_output.report position [(Yxml.string_of_body [
@@ -188,7 +192,7 @@ let add stmq exec_id tip edit_id text =
 
 let extract_perspective (Version nodes) : perspective =
   List.fold_right
-    (fun (n: node) (ps: perspective) -> match n with Node(_, p) -> p @ ps)
+    (fun (n: node) (ps: perspective) -> match n with Node(_, p, _) -> p @ ps)
     (List.map snd nodes)
     []
 

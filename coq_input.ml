@@ -13,6 +13,7 @@ let obtain_edits edits_yxml =
       (function
        | (_ :: perspective), overlays ->
         (* Ignored head of list is a 'node-required' argument for Isabelle *)
-           Pide_document.Perspective (List.map (fun cmd_id -> int_of_string cmd_id) perspective)
+           (* Overlay structure, morally: map of command_id -> list of commands + arguments *)
+           Pide_document.Perspective ((List.map (fun cmd_id -> int_of_string cmd_id) perspective), (list (pair int (pair string (list string)))) overlays)
        | _ -> assert false)])) 
     (Yxml.parse_body edits_yxml))
