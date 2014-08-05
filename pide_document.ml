@@ -173,7 +173,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let updated = 
     new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
       if List.mem_assoc name edits then
-        let Node (entries0, _, overlay0) = get_node old_nodes name in
+        let Node (entries0, _, _) = get_node old_nodes name in
         let (common, (rest0, rest)) = chop_common entries0 entries in
         let tip = if common = [] then !initial_state else snd (CList.last common) in
         let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
@@ -231,6 +231,7 @@ let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exe
     p
     []
 
+(* TODO: Can we enqueue directly on the update? *)
 let execute stmq (execs : (command_id * exec_id list) list) tip version =
   let st = !global_state in
   let p = extract_perspective (the_version st version) in
@@ -242,7 +243,8 @@ let execute stmq (execs : (command_id * exec_id list) list) tip version =
       match eids with
       | exec_id:: overlays ->
           let new_tip = add stmq exec_id curr_tip cid (the_command st cid) in
-          List.iter (fun oid -> query stmq new_tip oid (List.assoc oid !command_overlay)) overlays; (* TODO: I believe the invariant holds that List.mem_assoc oid !command_overlays here *)
+          List.iter (fun oid ->
+            query stmq new_tip oid (List.assoc oid !command_overlay)) overlays; (* TODO: I believe the invariant holds that List.mem_assoc oid !command_overlays here *)
           new_tip
       | [] -> curr_tip 
       )
