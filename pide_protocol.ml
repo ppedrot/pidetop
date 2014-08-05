@@ -71,6 +71,8 @@ let exec_printer id msg f=
   match id with
   | Feedback.State exec_id -> 
       f exec_id (Pide_document.print_exec_id exec_id) msg
+(*  | Feedback.Edit eid -> (* FIXME: Sometimes, a feedback is sent with a command id. *)
+      f eid (Pide_document.print_id eid) msg*)
   | _ -> false
 
 let already_printed = ref Stateid.Set.empty
