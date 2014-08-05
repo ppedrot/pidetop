@@ -150,7 +150,23 @@ let rec chop_common (entries0 : entries) (entries1: entries) =
 
 let initial_state: Stateid.t ref = ref Stateid.dummy
 
+let command_overlay = ref []
+
+let set_overlay (cid: command_id) (ov: overlay): exec_id list =
+  List.fold_right (function (oid, (command, args)) -> fun acc -> (* TODO: Check we are given a Coq query *)
+    match args with 
+    | [] -> acc
+    | arg :: args  ->   
+      if oid = cid then
+        let eid = Stateid.fresh () in
+        command_overlay := (eid, arg) :: !command_overlay;
+        eid :: acc
+      else acc) 
+  ov []
+
+
 let errors = ref []
+(* TODO: It probably makes sense to change the result type here to command_id * ((exec_id * Pide_protocol.task) list), so execute has direct access to the tasks to enqueue. *)
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state): (command_id * exec_id list) list * exec_id * state = 
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
@@ -163,7 +179,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
         let command_execs =
           List.map (fun (id, _) -> (id, [])) rest0 @
-          List.map (fun (id, exec_id) -> (id, [exec_id])) rest' in (* TODO: Use overlay to add more exec_ids *)
+          List.map (fun (id, exec_id) -> (id, exec_id :: (set_overlay id overlay))) rest' in
         let updated_node =
           match command_execs with
           | [] -> []
@@ -226,7 +242,7 @@ let execute stmq (execs : (command_id * exec_id list) list) tip version =
       match eids with
       | exec_id:: overlays ->
           let new_tip = add stmq exec_id curr_tip cid (the_command st cid) in
-          List.iter (fun oid -> query stmq new_tip oid "") overlays; (* FIXME: find the text of the query in the overlay *)
+          List.iter (fun oid -> query stmq new_tip oid (List.assoc oid !command_overlay)) overlays; (* TODO: I believe the invariant holds that List.mem_assoc oid !command_overlays here *)
           new_tip
       | [] -> curr_tip 
       )
