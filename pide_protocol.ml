@@ -23,8 +23,6 @@ let run_command name args stmq =
       raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^
                       Pp.string_of_ppcmds (Errors.print e)))
 
-let received_errors = ref []
-
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
      List.iter (writeln Position.none) args);
