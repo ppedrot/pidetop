@@ -120,6 +120,10 @@ let rest_printer {Feedback.id = id; Feedback.content = content } =
         report position [(Yxml.string_of_body [
           Pide_xml.Elem (("finished", []), [])])];
         true
+    | Feedback.Message { Feedback.message_content = s } ->
+        let position = Position.id_only exec_id_str in
+        writeln position s;
+        true
     | _ -> false)
 
 type entry_location =
