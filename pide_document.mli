@@ -25,20 +25,18 @@ type node_edit =
 type edit = string * node_edit
 
 val define_command: command_id -> string -> state -> state
-val update:
-  version_id -> version_id -> edit list -> state -> 
-  (command_id * exec_id list) list * exec_id * state
+val update: version_id -> version_id -> edit list -> state ->
+  (command_id * exec_id list) list * Pide_protocol.task Queue.t * state
 
 (* Executes the given 'transaction': 
  * the first argument is the list of new assignments, 
  *  the second argument the list of 'common ancestors'. 
  *  The version_id argument is the tip from which to execute the given commands.
- *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered.
- *  TODO: Maybe enrich global states to contain STM tip?
+ *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered
+ *  TODO: Is this the right place to start shuffling the queues?
  *)
 val execute :
-  Pide_protocol.task TQueue.t -> (command_id * exec_id list) list -> exec_id ->
-  version_id -> unit
+  Pide_protocol.task TQueue.t -> Pide_protocol.task Queue.t -> unit
 
 val change_state: (state -> state) -> unit
 

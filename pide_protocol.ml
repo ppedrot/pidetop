@@ -50,17 +50,15 @@ let initialize_commands () =
     | [old_id_str; new_id_str; edits_yxml] -> 
         let old_id = Pide_document.parse_id old_id_str in
         let new_id = Pide_document.parse_id new_id_str in
-        let new_transaction = ref [] in
-        let tip = ref Stateid.dummy in
+        let new_transaction = ref (Queue.create ()) in
         let edits = obtain_edits edits_yxml in
         Pide_document.change_state (fun state ->
-          let (assignment, t, state') =
+          let (assignment, tasks, state') =
             Pide_document.update old_id new_id edits state in
           assignment_message new_id assignment;
-          new_transaction := assignment;
-          tip := t;
+          new_transaction := tasks;
           state');
-        Pide_document.execute stmq !new_transaction !tip new_id
+        Pide_document.execute stmq !new_transaction
     | _ -> assert false)
 
 let (<|>) f1 f2 feedback =

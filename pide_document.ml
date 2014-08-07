@@ -54,11 +54,11 @@ let the_version (State (versions, _)) (id: version_id) =
 let the_command (State (_, commands)) (id: command_id) =
   List.assoc id commands
 
-
 let parse_id = int_of_string
 let print_id = string_of_int
 let print_exec_id = Stateid.to_string
 
+let initial_state: Stateid.t ref = ref Stateid.dummy
 
 type node_edit = 
   | Edits of (command_id option * command_id option) list
@@ -148,109 +148,104 @@ let rec chop_common (entries0 : entries) (entries1: entries) =
       (x :: common', rest')
   | _ -> ([], (entries0, entries1))
 
-let initial_state: Stateid.t ref = ref Stateid.dummy
 
-let command_overlay = ref []
-
-let set_overlay (cid: command_id) (ov: overlay): exec_id list =
-  List.fold_right (function (oid, (command, args)) -> fun acc -> (* TODO: Check we are given a Coq query *)
-    match args with 
-    | [] -> acc
-    | arg :: args  ->   
-      if oid = cid then
-        let eid = Stateid.fresh () in
-        command_overlay := (eid, arg) :: !command_overlay;
-        eid :: acc
-      else acc) 
-  ov []
-
-
-let errors = ref []
-(* TODO: It probably makes sense to change the result type here to command_id * ((exec_id * Pide_protocol.task) list), so execute has direct access to the tasks to enqueue. *)
-let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state): (command_id * exec_id list) list * exec_id * state = 
-  let Version old_nodes as old_version = the_version st v_old in
-  let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
-  let updated = 
-    new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
-      if List.mem_assoc name edits then
-        let Node (entries0, _, _) = get_node old_nodes name in
-        let (common, (rest0, rest)) = chop_common entries0 entries in
-        let tip = if common = [] then !initial_state else snd (CList.last common) in
-        let rest' = List.map (fun (id, _) -> id, Stateid.fresh ()) rest in
-        let command_execs =
-          List.map (fun (id, _) -> (id, [])) rest0 @
-          List.map (fun (id, exec_id) -> (id, exec_id :: (set_overlay id overlay))) rest' in
-        let updated_node =
-          match command_execs with
-          | [] -> []
-          | _  -> [(name, Node ((common @ rest'), perspective, overlay))] in
-        (command_execs, tip, updated_node)
-      else
-        ([], !initial_state, []))
-    in 
-    let command_execs = List.flatten (List.map (fun (x, _, _) -> x) updated) in
-    let tip = List.fold_left (fun _ (_, t, _) -> t) !initial_state updated in  
-    let updated_nodes = List.flatten (List.map (fun (_, _, y) -> y) updated) in
-    let state' =
-      define_version v_new (List.fold_left put_node new_version updated_nodes) st in
-    (command_execs, tip, state')
-
-let add stmq exec_id tip edit_id text = 
-  TQueue.push stmq (`Add (lazy (
+let add task_queue exec_id tip edit_id text =
+  Queue.push (`Add (lazy (
   let position = Position.id_only (print_exec_id exec_id) in
   Coq_output.report position [(Yxml.string_of_body [
           Pide_xml.Elem (("running", []), [])])];
   try
     ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
     Some exec_id
-  with e when Errors.noncritical e -> None)));
+  with e when Errors.noncritical e -> None))) task_queue;
   exec_id
 
-let query stmq at query_id text =
-  TQueue.push stmq (`Query (lazy (
+let query task_queue at query_id text =
+  Queue.push (`Query (lazy (
     let position = Position.id_only (print_exec_id query_id) in
     Coq_output.report position [(Yxml.string_of_body [
       Pide_xml.Elem (("running", []), [])])]; (* TODO: potential for refactoring with the add. *)
-    Stm.query ~at:at ~report_with:query_id text)))
+    Stm.query ~at:at ~report_with:query_id text))) task_queue
 
-let extract_perspective (Version nodes) : perspective =
-  List.fold_right
-    (fun (n: node) (ps: perspective) -> match n with Node(_, p, _) -> p @ ps)
-    (List.map snd nodes)
-    []
+
+let set_overlay stmq (cid: command_id) (at: exec_id) (ov: overlay) (st: state): exec_id list =
+  List.fold_right (function (oid, (command, args)) -> fun acc -> (* TODO: Check we are given a Coq query *)
+    match args with 
+    | instance :: query_text :: args ->
+      (* TODO: use the instance id to report query results. *)
+      if oid = cid then
+        let eid = Stateid.fresh () in
+        query stmq at eid query_text;
+        eid :: acc
+      else acc
+    | _ -> acc)
+  ov []
 
 let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
-    (fun (c: command_id) (ps: exec_id list) ->
+    (fun (c: command_id) (acc: exec_id list) ->
       if (List.mem_assoc c execs) then
         match List.assoc c execs with
-        | [] -> ps
-        | es -> es @ ps
-      else
-        ps)
+        | [] -> acc
+        | es -> es @ acc
+      else acc)
     p
     []
 
-(* TODO: Can we enqueue directly on the update? *)
-let execute stmq (execs : (command_id * exec_id list) list) tip version =
-  let st = !global_state in
-  let p = extract_perspective (the_version st version) in
-  let exec_perspective = to_exec_list p execs in
-  Stm.set_perspective exec_perspective;
-  if (execs <> []) then begin
-    TQueue.push stmq (`EditAt tip);
-    let _ = (List.fold_left (fun curr_tip (cid, eids) ->
-      match eids with
-      | exec_id:: overlays ->
-          let new_tip = add stmq exec_id curr_tip cid (the_command st cid) in
-          List.iter (fun oid ->
-            query stmq new_tip oid (List.assoc oid !command_overlay)) overlays; (* TODO: I believe the invariant holds that List.mem_assoc oid !command_overlays here *)
-          new_tip
-      | [] -> curr_tip 
-      )
-      tip execs) in
-    TQueue.push stmq `Observe
-  end
-  
+let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
+  (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
+  let Version old_nodes as old_version = the_version st v_old in
+  let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
+  let tasks = Queue.create () in
+  let updated =
+    new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
+      if List.mem_assoc name edits then
+        let Node (old_entries, _, _) = get_node old_nodes name in
+        let (common, (outdated_computation, new_computation)) = chop_common old_entries entries in
+        let common_execs = List.fold_right
+          (fun (id, exec_id) acc ->
+            let id_overlay = set_overlay tasks id exec_id overlay st in
+            (* We avoid re-sending a previous assignment here. Probably doesn't
+             * matter too much, though, so consider removing if statement.
+             *)
+            if id_overlay = [] then acc
+            else (id, exec_id :: id_overlay) :: acc
+          ) common [] in
+        let tip = if common = [] then !initial_state else snd (CList.last common) in
+        Queue.push (`EditAt tip) tasks;
+
+        let new_computation' = List.map (fun (id, _) -> id, Stateid.fresh ()) new_computation in
+
+        (* TODO: Adding to the queue here is a bit overkill, can be combined with setting the assignment. *)
+        ignore(List.fold_left
+          (fun curr_tip (cid, exec_id) -> add tasks exec_id curr_tip cid (the_command st cid))
+          tip new_computation');
+        let command_execs =
+          List.map (fun (id, _) -> (id, [])) outdated_computation @
+          common_execs @
+          List.map (fun (id, exec_id) -> (id, exec_id :: (set_overlay tasks id exec_id overlay st))) new_computation' in
+        Queue.push `Observe tasks;
+        let updated_node =
+          match command_execs with
+          | [] -> []
+          | _  -> [(name, Node ((common @ new_computation'), perspective, overlay))] in
+
+        let exec_perspective = to_exec_list perspective command_execs in
+        Stm.set_perspective exec_perspective;
+
+        (command_execs, updated_node)
+      else
+        ([], []))
+    in
+    let command_execs = List.flatten (List.map fst updated) in
+    let updated_nodes = List.flatten (List.map snd updated) in
+    let state' =
+      define_version v_new (List.fold_left put_node new_version updated_nodes) st in
+    (command_execs, tasks, state')
+
+let execute stmq task_queue =
+  Queue.iter (fun t -> TQueue.push stmq t) task_queue;
+  Queue.clear task_queue
+
 let initialize () =
   initial_state := Stm.get_current_state ()
