@@ -108,13 +108,6 @@ let error_printer {Feedback.id = id; Feedback.content = content} =
 let rest_printer {Feedback.id = id; Feedback.content = content } =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
-    | Feedback.GlobRef (loc, _fp, _mp, name, kind) -> 
-(*
-        let i, j = Loc.unloc loc in
-        Printf.eprintf
-          "Loc: (%d, %d) name: %s, kind: %s fp: %s %!" i j name kind _fp;
-*)
-        true
     | Feedback.Processed ->
         let position = Position.id_only exec_id_str in
         report position [(Yxml.string_of_body [
@@ -139,10 +132,11 @@ let lookup m k cont =
 
 
 (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
-let load_globs (f: string) =
+let load_globs (f: string) (id: string) =
   let bare_name = Filename.chop_extension f in
   let glob_name = bare_name ^ ".glob" in
   let v_name = bare_name ^ ".v" in
+  try
   let c = open_in glob_name in
     try
     while true do
@@ -154,15 +148,19 @@ let load_globs (f: string) =
            let ty = if ty = "prf" then "thm" else ty in
            def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
       with Scanf.Scan_failure _ | End_of_file -> ()
-    done 
-  with End_of_file -> 
-    close_in c
+    done
+    with End_of_file ->
+      close_in c
+  with Sys_error s ->
+    warning_msg (Position.id_only id)
+      ("Warning: " ^ glob_name ^
+       ": No such file or directory (links will not be available)")
 
 let glob_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
     | Feedback.FileLoaded(dirname, filename) ->
-        load_globs filename; true
+        load_globs filename exec_id_str; true
     | Feedback.GlobDef (loc, name, secpath, ty) ->
         (* TODO: This works for proofs, but will break on other 'synonyms' *)
         let ty = if ty = "prf" then "thm" else  ty in
