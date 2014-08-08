@@ -169,16 +169,18 @@ let query task_queue at query_id text =
 
 
 let set_overlay stmq (cid: command_id) (at: exec_id) (ov: overlay) (st: state): exec_id list =
-  List.fold_right (function (oid, (command, args)) -> fun acc -> (* TODO: Check we are given a Coq query *)
-    match args with 
-    | instance :: query_text :: args ->
-      (* TODO: use the instance id to report query results. *)
-      if oid = cid then
-        let eid = Stateid.fresh () in
-        query stmq at eid query_text;
-        eid :: acc
-      else acc
-    | _ -> acc)
+  List.fold_right (function (oid, (command, args)) -> fun acc ->
+    if command = "coq_query" then
+      match args with 
+      | instance :: query_text :: args ->
+        (* TODO: use the instance id to report query results. *)
+        if oid = cid then
+          let eid = Stateid.fresh () in
+          query stmq at eid query_text;
+          eid :: acc
+        else acc
+      | _ -> acc
+    else acc)
   ov []
 
 let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exec_id list =
