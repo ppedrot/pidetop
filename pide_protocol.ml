@@ -105,8 +105,6 @@ let error_printer {Feedback.id = id; Feedback.content = content} =
       true
     | _ -> false  )
 
-let print_ast (a: Vernacexpr.vernac_expr) = "Tree"
-
 let rest_printer {Feedback.id = id; Feedback.content = content } =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
@@ -118,10 +116,6 @@ let rest_printer {Feedback.id = id; Feedback.content = content } =
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only exec_id_str in
         writeln position s;
-        true
-    | Feedback.Ast (loc, ast) ->
-        let i,j = Loc.unloc loc in
-        Printf.eprintf "Ast for id %s (%d; %d): %s\n%!" exec_id_str i j (print_ast ast);
         true
     | _ -> false)
 
@@ -201,9 +195,9 @@ let state_printer ~id _ content =
     true)
 
 let init_printers () =
-  Pretty_printer.set_feeder (fun f ->
+  Pp.set_feeder (fun f ->
     ignore((error_printer<|>goal_printer <|> glob_printer <|> rest_printer) f));
-  Pretty_printer.log_via_feedback ()
+  Pp.log_via_feedback ()
 
 let initialize () =
   Coq_messages.initialize ();
