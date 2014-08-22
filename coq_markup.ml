@@ -13,7 +13,7 @@ let idN = "id"
 (* outer syntax *)
 
 let comment = markup_elem "comment"
-let keyword = markup_elem "keyword"
+let keyword1 = markup_elem "keyword1"
 let declaration = markup_elem "declaration"
 let proof_declaration = markup_elem "proof_declaration"
 let qed = markup_elem "qed"
