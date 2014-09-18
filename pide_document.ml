@@ -152,7 +152,7 @@ let rec chop_common (entries0 : entries) (entries1: entries) =
 let add task_queue exec_id tip edit_id text =
   Queue.push (`Add (lazy (
   let position = Position.id_only (print_exec_id exec_id) in
-  Coq_output.report position [(Yxml.string_of_body [
+  Coq_output.status position [(Yxml.string_of_body [
           Pide_xml.Elem (("running", []), [])])];
   try
     ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
@@ -163,7 +163,7 @@ let add task_queue exec_id tip edit_id text =
 let query task_queue at query_id text =
   Queue.push (`Query (lazy (
     let position = Position.id_only (print_exec_id query_id) in
-    Coq_output.report position [(Yxml.string_of_body [
+    Coq_output.status position [(Yxml.string_of_body [
       Pide_xml.Elem (("running", []), [])])]; (* TODO: potential for refactoring with the add. *)
     Stm.query ~at:at ~report_with:query_id text))) task_queue
 
