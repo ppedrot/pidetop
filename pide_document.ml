@@ -48,6 +48,16 @@ let define_version (id : version_id) version (State (versions, commands)) =
     else (id, version) :: versions
   in State (versions', commands)
 
+
+let remove_version (id: version_id) (State (versions, commands)) =
+  let versions' =
+    if not (List.mem_assoc id versions) then raise (Failure "Does not exist")
+    else List.remove_assoc id versions
+  in State(versions', commands)
+
+let remove_versions (ids: version_id list) (s: state) =
+  List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
+
 let the_version (State (versions, _)) (id: version_id) =
   List.assoc id versions
 

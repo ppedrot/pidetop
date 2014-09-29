@@ -40,3 +40,8 @@ let assignment_message new_id assignment =
     let stateid x = int (Stateid.to_int x) in
     pair int (list (pair int (list stateid))) (new_id, assignment))
   in protocol_message assign_update body
+
+let removed_versions_message ids =
+  let body = Pide_xml.Encode.(
+    list int ids)
+  in protocol_message removed_versions body

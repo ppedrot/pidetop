@@ -17,3 +17,6 @@ let obtain_edits edits_yxml =
            Pide_document.Perspective ((List.map (fun cmd_id -> int_of_string cmd_id) perspective), (list (pair int (pair string (list string)))) overlays)
        | _ -> assert false)])) 
     (Yxml.parse_body edits_yxml))
+
+let obtain_version_ids versions_yxml =
+  Pide_xml.Decode.(list int (Yxml.parse_body versions_yxml))

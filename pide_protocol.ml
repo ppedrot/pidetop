@@ -58,6 +58,13 @@ let initialize_commands () =
           new_transaction := tasks;
           state');
         Pide_document.execute stmq !new_transaction
+    | _ -> assert false);
+  register_protocol_command "Document.remove_versions" (fun _ args ->
+    match args with
+    | [stale_versions_yxml] ->
+        let ids = obtain_version_ids stale_versions_yxml in (* <- TODO: Parse stale_versions_yxml *)
+        Pide_document.change_state (fun state -> Pide_document.remove_versions ids state);
+        Coq_output.removed_versions_message ids
     | _ -> assert false)
 
 let (<|>) f1 f2 feedback =

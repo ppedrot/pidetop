@@ -20,3 +20,6 @@ val status : Position.t -> string list -> unit
 
 (* Acknowledgement of an update: takes the version updated to, and a list of command id -> Stateid mappings. *)
 val assignment_message : int -> (int * Stateid.t list) list -> unit
+
+(* Acknowledgement of version removal. Takes the removed versions. *)
+val removed_versions_message : (int list) -> unit

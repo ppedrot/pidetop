@@ -25,8 +25,11 @@ type node_edit =
 type edit = string * node_edit
 
 val define_command: command_id -> string -> state -> state
+
 val update: version_id -> version_id -> edit list -> state ->
   (command_id * exec_id list) list * Pide_protocol.task Queue.t * state
+
+val remove_versions: version_id list -> state -> state
 
 (* Executes the given 'transaction': 
  * the first argument is the list of new assignments, 

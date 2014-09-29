@@ -6,3 +6,6 @@ val read_command : unit -> string list option
 
 (* Decodes YXML-encoded edits into Pide_document edits. *)
 val obtain_edits : string -> Pide_document.edit list
+
+(* Decodes YXML-encoded edits into Pide_document version_ids *)
+val obtain_version_ids : string -> Pide_document.version_id list
