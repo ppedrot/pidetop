@@ -28,3 +28,5 @@ val yxml_send: Pide_xml.tree -> Pide_xml.body -> unit
 val read_command : unit -> string list option
 
 val string_of_body : Pide_xml.body -> string
+
+val string_of_xml_body : Xml_datatype.xml list -> string

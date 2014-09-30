@@ -54,6 +54,16 @@ let string_of_body body =
   and trees ts = fold tree ts
   in content (trees body [])
 
+let string_of_xml_body body =
+  let attrib (l, v) = add str_Y @> add l @> add "=" @> add v in
+  let rec tree = function
+    | Xml_datatype.Element (name, atts, children) ->
+        add str_XY @> add name @> fold attrib atts @> add str_X @>
+        trees children @>
+        add str_XYX
+    | Xml_datatype.PCData s -> add s
+  and trees ts = fold tree ts
+  in content (trees body [])
 let string_of tree = string_of_body [tree]
 
 
