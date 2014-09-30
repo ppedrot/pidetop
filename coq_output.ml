@@ -1,9 +1,8 @@
-open Pide_xml
 open Coq_markup
 open Position
 
 let send_message ch props body =
-  let xml_header = Elem ((ch, props), []) in
+  let xml_header = Xml_datatype.Element (ch, props, []) in
   Yxml.yxml_send xml_header body
 
 let counter () =
@@ -21,11 +20,11 @@ let standard_message ch make_serial pos body =
     let properties = if make_serial then Properties.put (Markup.serialN, string_of_int (serial ()))
                                                         properties_pos 
                                     else properties_pos in
-    send_message ch properties (Encode.string body)
+    send_message ch properties (Pide_xml.Encode.string body)
 
 
 let init_message message =
-  let xml_message = Encode.string message in
+  let xml_message = Pide_xml.Encode.string message in
   send_message initN [] xml_message
 
 let writeln = standard_message writelnN true 

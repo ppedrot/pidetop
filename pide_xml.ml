@@ -1,3 +1,4 @@
+open Xml_datatype
 (*** Untyped XML trees and typed representation of ML values ***)
 module type Xml_data_ops = 
 sig
@@ -21,8 +22,7 @@ end
 
 module type Pide_xml = 
 sig
-  type attributes = (string * string) list
-  type tree = Elem of ((string * attributes) * tree list) | Text of string
+  type tree = xml
   type body = tree list
   exception XML_Atom of string
   exception XML_Body of tree list
@@ -37,8 +37,7 @@ sig
     type 'a v = string list * body -> 'a
 end
 
-type attributes = (string * string) list
-type tree = Elem of ((string * attributes) * tree list) | Text of string
+type tree = xml
 type body = tree list
 
 let map_index f =
@@ -69,18 +68,18 @@ let unit_atom () = ""
 
 (* structural nodes *)
 
-let node ts = Elem ((":", []), ts)
+let node ts = Element (":", [], ts)
 
 let vector = map_index (fun (i, x) -> (int_atom i, x))
 
-let tagged (tag, (xs, ts)) = Elem ((int_atom tag, vector xs), ts)
+let tagged (tag, (xs, ts)) = Element (int_atom tag, vector xs, ts)
 
 
 (* representation of standard types *)
 
-let properties props = [Elem ((":", props), [])]
+let properties props = [Element (":", props, [])]
 
-let string = function "" -> [] | s -> [Text s]
+let string = function "" -> [] | s -> [PCData s]
 
 let int i = string (int_atom i)
 
@@ -130,26 +129,26 @@ let unit_atom s =
 
 (* structural nodes *)
 let node = function
-  | Elem ((":", []), ts) -> ts
+  | Element (":", [], ts) -> ts
   | t -> raise (XML_Body [t])
 
 let vector =
   map_index (function (i, (a, x)) -> if int_atom a = i then x else raise (XML_Atom a))
 
 let tagged = function
-  | Elem ((name, atts), ts) -> (int_atom name, (vector atts, ts))
+  | Element (name, atts, ts) -> (int_atom name, (vector atts, ts))
   | t -> raise (XML_Body [t])
 
 
 (* representation of standard types *)
 
 let properties = function
-  | [Elem ((":", props), [])] -> props
+  | [Element (":", props, [])] -> props
   | ts -> raise (XML_Body ts)
 
 let string = function
   | [] -> ""
-  | [Text s] -> s
+  | [PCData s] -> s
   | ts -> raise (XML_Body ts)
 
 let int ts = int_atom (string ts)

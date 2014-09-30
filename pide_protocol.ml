@@ -85,7 +85,7 @@ let goal_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
     | Feedback.XMLGoals (loc, goals) when Loc.is_ghost loc ->
-        report (Position.id_only exec_id_str) [(Yxml.string_of_xml_body [goals])];
+        report (Position.id_only exec_id_str) [(Yxml.string_of_body [goals])];
         true
     | Feedback.Goals (loc,goalstate) when Loc.is_ghost loc ->
         (if Stateid.Set.mem exec_id !already_printed then ()
@@ -111,7 +111,7 @@ let error_printer {Feedback.id = id; Feedback.content = content} =
                  else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)) 
         exec_id_str in
       Coq_output.status pos [(Yxml.string_of_body [
-          Pide_xml.Elem (("finished", []), [])])];
+          Xml_datatype.Element ("finished", [], [])])];
       error_msg pos txt;
       true
     | _ -> false  )
@@ -122,7 +122,7 @@ let rest_printer {Feedback.id = id; Feedback.content = content } =
     | Feedback.Processed ->
         let position = Position.id_only exec_id_str in
         Coq_output.status position [(Yxml.string_of_body [
-          Pide_xml.Elem (("finished", []), [])])];
+          Xml_datatype.Element ("finished", [], [])])];
         true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only exec_id_str in
@@ -196,7 +196,7 @@ let glob_printer {Feedback.id = id; Feedback.content = content} =
                                  "kind", ty] in
           
           let position = Position.make_id (i+1) (j+1) exec_id_str in
-          Coq_output.report position [(Yxml.string_of_body [Pide_xml.Elem (("entity", report_body  ), [])])]
+          Coq_output.report position [(Yxml.string_of_body [Xml_datatype.Element ("entity", report_body, [])])]
         )
     | _ -> false
   )
@@ -222,7 +222,7 @@ let ast_to_reports start id_str = function
                 Coq_markup.offsetN, (string_of_int start);
                 Coq_markup.end_offsetN, (string_of_int (start+ kind_length))] in
       (* TODO: Should be possible to do something of the kind with Markup.t *)
-      [Yxml.string_of_body [Pide_xml.Elem (("keyword1", offset), [])]]  (* TODO: reporting keyword1 here is bad style, should be made more semantic, translation in jEdit *)
+      [Yxml.string_of_body [Xml_datatype.Element ("keyword1", offset, [])]]  (* TODO: reporting keyword1 here is bad style, should be made more semantic, translation in jEdit *)
   | _  -> [] (* TODO, probably in a separate module (very big match *)
 let ast_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg ->

@@ -44,17 +44,6 @@ let markup m txt =
 let markup_only m = markup m ""
 
 let string_of_body body =
-  let attrib (a, x) = add str_Y @> add a @> add "=" @> add x in
-  let rec tree = function
-    | Pide_xml.Elem ((name, atts), ts) ->
-        add str_XY @> add name @> fold attrib atts @> add str_X @>
-        trees ts @>
-        add str_XYX
-    | Pide_xml.Text s -> add s
-  and trees ts = fold tree ts
-  in content (trees body [])
-
-let string_of_xml_body body =
   let attrib (l, v) = add str_Y @> add l @> add "=" @> add v in
   let rec tree = function
     | Xml_datatype.Element (name, atts, children) ->
@@ -119,9 +108,9 @@ let parse_body source =
 
   let pop = function
     | [] -> assert false
-    | ((name, _) as markup, body) :: pending ->
+    | ((name, atts) , body) :: pending ->
         if name = "" then err_unbalanced ""
-        else add (Pide_xml.Elem (markup, List.rev body)) pending
+        else add (Xml_datatype.Element (name, atts, List.rev body)) pending
   in
 
   (* parse chunks *)
@@ -132,7 +121,7 @@ let parse_body source =
     | [] -> assert false
     | [""; ""] -> pop
     | ("" :: name :: atts) -> push name (List.map parse_attrib atts)
-    | txts -> fold (fun s -> add (Pide_xml.Text s)) txts
+    | txts -> fold (fun s -> add (Xml_datatype.PCData s)) txts
   in
   match fold parse_chunk chunks [(("", []), [])] with
   | [] -> assert false
@@ -142,7 +131,7 @@ let parse_body source =
 let parse source =
   match parse_body source with
   | [result] -> result
-  | [] -> Pide_xml.Text ""
+  | [] -> Xml_datatype.PCData ""
   | _ -> err "multiple results"
 
 let m = Mutex.create ()

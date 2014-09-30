@@ -23,10 +23,8 @@ val parse_body: string -> Pide_xml.body
 val parse: string -> Pide_xml.tree
 
 val initialize : unit -> unit
-val yxml_send: Pide_xml.tree -> Pide_xml.body -> unit
+val yxml_send: Xml_datatype.xml -> Pide_xml.body -> unit
 
 val read_command : unit -> string list option
 
-val string_of_body : Pide_xml.body -> string
-
-val string_of_xml_body : Xml_datatype.xml list -> string
+val string_of_body : Xml_datatype.xml list -> string
