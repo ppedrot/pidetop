@@ -30,7 +30,7 @@ let init_message message =
 let writeln = standard_message writelnN true 
 let error_msg pos = standard_message errorN true pos 
 let warning_msg pos = standard_message warningN true pos
-let report pos body = standard_message reportN false pos  (Yxml.implode body)
+let report pos body = standard_message reportN false pos  (Yxml.implode [Yxml.string_of_body body])
 let status pos body = standard_message statusN false pos (Yxml.implode body)
 let protocol_message = send_message protocolN
 
