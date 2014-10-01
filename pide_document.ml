@@ -166,6 +166,8 @@ let add task_queue exec_id tip edit_id text =
           Xml_datatype.Element ("running", [], [])])];
   try
     ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
+    let ast = Stm.print_ast exec_id in
+    Coq_output.report (Position.id_only (Stateid.to_string exec_id)) [ast];
     Some exec_id
   with e when Errors.noncritical e -> None))) task_queue;
   exec_id
