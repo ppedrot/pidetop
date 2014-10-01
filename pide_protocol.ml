@@ -205,46 +205,9 @@ let state_printer ~id _ content =
     writeln (Position.id_only exec_id_str) (Pp.string_of_ppcmds msg);
     true)
 
-let string_of_theorem_kind = function
-  | Theorem -> "Theorem"
-  | Lemma -> "Lemma"
-  | Fact -> "Fact"
-  | Remark -> "Remark"
-  | Property -> "Property"
-  | Proposition -> "Proposition"
-  | Corollary -> "Corollary"
-
-let ast_to_reports start id_str = function
-  | Vernacexpr.VernacStartTheoremProof (thm_kind, assertions, _) ->
-      let kind_length = String.length (string_of_theorem_kind thm_kind) in
-      let offset = [
-                Coq_markup.idN, id_str;
-                Coq_markup.offsetN, (string_of_int start);
-                Coq_markup.end_offsetN, (string_of_int (start+ kind_length))] in
-      (* TODO: Should be possible to do something of the kind with Markup.t *)
-      [Yxml.string_of_body [Xml_datatype.Element ("keyword1", offset, [])]]  (* TODO: reporting keyword1 here is bad style, should be made more semantic, translation in jEdit *)
-  | _  -> [] (* TODO, probably in a separate module (very big match *)
-let ast_printer {Feedback.id = id; Feedback.content = content} =
-  exec_printer id content (fun exec_id exec_id_str msg ->
-    match msg with
-    | Feedback.Ast (loc, xml) -> begin
-        try
-          let i,j = Loc.unloc loc in
-          let position = Position.make_id (i+1) (j+1) exec_id_str in
-          let tree = Serialize_AST.to_ast xml in
-          Printf.eprintf "Marshalled AST for id %s, at loc [%d; %d]: %s\n%!"
-            exec_id_str i j (Xml_printer.to_string_fmt xml);
-          Coq_output.report position (ast_to_reports (i+1) exec_id_str tree);
-          true
-        with Serialize.Marshal_error -> Printf.eprintf "Could not marshall tree: %s\n%!" (Xml_printer.to_string_fmt xml); false
-      end
-    | _ -> false
-  )
-
 let init_printers () =
   Pp.set_feeder (fun f ->
-    ignore((error_printer<|>goal_printer <|> glob_printer <|>
-            ast_printer <|> rest_printer) f));
+    ignore((error_printer<|>goal_printer <|> glob_printer <|> rest_printer) f));
   Pp.log_via_feedback ()
 
 let initialize () =
