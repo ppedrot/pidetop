@@ -14,7 +14,7 @@ val warning_msg : Position.t -> string -> unit
 
 (* Lexer reports from the prover: takes the execution id (as a string) to reported on, and some syntax tree (as string)  *)
 (* TODO: Make second argument report type? *)
-val report : Position.t -> string list -> unit
+val report : Position.t -> Xml_datatype.xml list -> unit
 
 val status : Position.t -> string list -> unit
 
