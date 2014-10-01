@@ -16,10 +16,10 @@ val warning_msg : Position.t -> string -> unit
 (* TODO: Make second argument report type? *)
 val report : Position.t -> Xml_datatype.xml list -> unit
 
-val status : Position.t -> string list -> unit
+val status : Position.t -> Xml_datatype.xml list -> unit
 
 (* Acknowledgement of an update: takes the version updated to, and a list of command id -> Stateid mappings. *)
 val assignment_message : int -> (int * Stateid.t list) list -> unit
 
 (* Acknowledgement of version removal. Takes the removed versions. *)
-val removed_versions_message : (int list) -> unit
+val removed_versions_message : int list -> unit

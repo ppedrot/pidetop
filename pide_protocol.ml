@@ -110,8 +110,7 @@ let error_printer {Feedback.id = id; Feedback.content = content} =
       let pos = (if Loc.is_ghost loc then Position.id_only 
                  else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)) 
         exec_id_str in
-      Coq_output.status pos [(Yxml.string_of_body [
-          Xml_datatype.Element ("finished", [], [])])];
+      Coq_output.status pos [Xml_datatype.Element ("finished", [], [])];
       error_msg pos txt;
       true
     | _ -> false  )
@@ -121,8 +120,7 @@ let rest_printer {Feedback.id = id; Feedback.content = content } =
     match msg with
     | Feedback.Processed ->
         let position = Position.id_only exec_id_str in
-        Coq_output.status position [(Yxml.string_of_body [
-          Xml_datatype.Element ("finished", [], [])])];
+        Coq_output.status position [Xml_datatype.Element ("finished", [], [])];
         true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only exec_id_str in
