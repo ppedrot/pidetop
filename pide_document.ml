@@ -179,7 +179,7 @@ let query task_queue at query_id text =
 
 
 let set_overlay stmq (cid: command_id) (at: exec_id) (ov: overlay) (st: state): exec_id list =
-  List.fold_right (function (oid, (command, args)) -> fun acc ->
+  List.fold_right (fun (oid, (command, args)) acc ->
     if command = "coq_query" then
       match args with 
       | instance :: query_text :: args ->
