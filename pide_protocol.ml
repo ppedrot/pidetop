@@ -84,7 +84,7 @@ let already_printed = ref Stateid.Set.empty
 let goal_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
-    | Feedback.XMLGoals (loc, goals) when Loc.is_ghost loc ->
+    | Feedback.StructuredGoals (loc, goals) when Loc.is_ghost loc ->
         report (Position.id_only exec_id_str) [goals];
         true
     | Feedback.Goals (loc,goalstate) when Loc.is_ghost loc ->
