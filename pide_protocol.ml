@@ -71,7 +71,7 @@ let (<|>) f1 f2 feedback =
   if f1 feedback then true
                  else f2 feedback
 
-let exec_printer id msg f=
+let exec_printer id msg f =
   match id with
   | Feedback.State exec_id -> 
       f exec_id (Pide_document.print_exec_id exec_id) msg
@@ -81,24 +81,23 @@ let exec_printer id msg f=
 
 let already_printed = ref Stateid.Set.empty
 
+let position_of_loc loc =
+  if Loc.is_ghost loc then Position.id_only
+  else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
+
 let goal_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg ->
     match msg with
-    | Feedback.StructuredGoals (loc, goals) when Loc.is_ghost loc ->
-        report (Position.id_only exec_id_str) [goals];
-        true
-    | Feedback.Goals (loc,goalstate) when Loc.is_ghost loc ->
-        (if Stateid.Set.mem exec_id !already_printed then ()
-         else (
-           already_printed := Stateid.Set.add exec_id !already_printed;
-           writeln (Position.id_only exec_id_str) goalstate));
+    | Feedback.StructuredGoals (loc, goals) ->
+        let pos = position_of_loc loc exec_id_str in
+        report pos [goals];
         true
     | Feedback.Goals (loc,goalstate) ->
         (if Stateid.Set.mem exec_id !already_printed then ()
          else (
            already_printed := Stateid.Set.add exec_id !already_printed;
-           let i, j = Loc.unloc loc in
-              writeln (Position.make_id i j exec_id_str) goalstate));
+           let pos = position_of_loc loc exec_id_str in
+           writeln pos goalstate));
         true 
     | _ -> false
     )
@@ -107,9 +106,7 @@ let error_printer {Feedback.id = id; Feedback.content = content} =
   exec_printer id content (fun exec_id exec_id_str msg -> 
     match msg with
     | Feedback.ErrorMsg (loc, txt) ->
-      let pos = (if Loc.is_ghost loc then Position.id_only 
-                 else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)) 
-        exec_id_str in
+      let pos = position_of_loc loc exec_id_str in
       Coq_output.status pos [Xml_datatype.Element ("finished", [], [])];
       error_msg pos txt;
       true
@@ -193,7 +190,7 @@ let glob_printer {Feedback.id = id; Feedback.content = content} =
                                  "name", name;
                                  "kind", ty] in
           
-          let position = Position.make_id (i+1) (j+1) exec_id_str in
+          let position = position_of_loc loc exec_id_str in
           Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
         )
     | _ -> false
