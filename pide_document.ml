@@ -9,6 +9,7 @@ let (@>) f g x = g (f x)
 type id = int
 type version_id = id
 type command_id = id
+type instance_id = id
 type exec_id = Stateid.t
 
 let no_id = 0
@@ -28,6 +29,8 @@ let new_id () =
 (* The type encodes the command to print on, the query to execute and its 
  * arguments *)
 type overlay = (command_id * (string * (string list))) list
+(* Routing queries to instances. *)
+type routing_table = (exec_id * instance_id) list
 type perspective = command_id list
 
 type entries = (command_id * exec_id) list
@@ -37,33 +40,41 @@ let empty_node = Node ([], [], [])
 type version = Version of (string * node) list
 let empty_version = Version []
 
-type state = State of (version_id * version) list * (command_id * string) list
+type state =
+  State of (version_id * version) list * (command_id * string) list *
+           routing_table
 
-let init_state = State ([(no_id, empty_version)], [])
+let init_state = State ([(no_id, empty_version)], [], [])
 let global_state = ref init_state
 let change_state f = global_state := f !global_state
 
-let define_version (id : version_id) version (State (versions, commands)) =
+let set_route (State (v, c, _)) table = State (v, c, table)
+
+let define_version id version (State (versions, commands, routes)) =
   let versions' =
     if List.mem_assoc id versions then raise (Failure "Dup")
     else (id, version) :: versions
-  in State (versions', commands)
+  in State (versions', commands, routes) (* TODO... *)
 
 
-let remove_version (id: version_id) (State (versions, commands)) =
+let remove_version (id: version_id) (State (versions, commands, routes)) =
   let versions' =
     if not (List.mem_assoc id versions) then raise (Failure "Does not exist")
     else List.remove_assoc id versions
-  in State(versions', commands)
+  in State(versions', commands, routes)
 
 let remove_versions (ids: version_id list) (s: state) =
   List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
 
-let the_version (State (versions, _)) (id: version_id) =
+let the_version (State (versions, _, _)) (id: version_id) =
   List.assoc id versions
 
-let the_command (State (_, commands)) (id: command_id) =
+let the_command (State (_, commands, _)) (id: command_id) =
   List.assoc id commands
+
+let the_route (State (_, _, routes)) (id: exec_id): instance_id option =
+  try Some (List.assoc id routes)
+  with Not_found -> None
 
 let parse_id = int_of_string
 let print_id = string_of_int
@@ -76,11 +87,11 @@ type node_edit =
   | Perspective of (command_id list * overlay)
 type edit = string * node_edit
 
-let define_command id (text: string) (State (versions, commands)) =
+let define_command id (text: string) (State (versions, commands, routes)) =
   let commands' =
     if List.mem_assoc id commands then raise (Failure "Dup")
     else (id, text ) :: commands
-  in State (versions, commands')
+  in State (versions, commands', routes)
 
 let default_node name nodes = 
   if List.mem_assoc name nodes then nodes
@@ -179,22 +190,22 @@ let query task_queue at query_id text =
     Stm.query ~at:at ~report_with:query_id text))) task_queue
 
 
-let set_overlay stmq (cid: command_id) (at: exec_id) (ov: overlay) (st: state): exec_id list =
-  List.fold_right (fun (oid, (command, args)) acc ->
+let set_overlay stmq cid at ov st: exec_id list * routing_table =
+  List.fold_right (fun (oid, (command, args)) (acc, rt) ->
     if command = "coq_query" then
       match args with 
       | instance :: query_text :: args ->
-        (* TODO: use the instance id to report query results. *)
         if oid = cid then
           let eid = Stateid.fresh () in
+          let iid = int_of_string instance in
           query stmq at eid query_text;
-          eid :: acc
-        else acc
-      | _ -> acc
-    else acc)
-  ov []
+          (eid :: acc, (eid, iid) :: rt)
+        else acc, rt
+      | _ -> acc, rt
+    else acc, rt)
+  ov ([], [])
 
-let to_exec_list (p: perspective) (execs: (command_id * exec_id list) list): exec_id list =
+let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
     (fun (c: command_id) (acc: exec_id list) ->
       if (List.mem_assoc c execs) then
@@ -214,47 +225,51 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
     new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
       if List.mem_assoc name edits then
         let Node (old_entries, _, _) = get_node old_nodes name in
-        let (common, (outdated_computation, new_computation)) = chop_common old_entries entries in
-        let common_execs = List.fold_right
-          (fun (id, exec_id) acc ->
-            let id_overlay = set_overlay tasks id exec_id overlay st in
-            (* We avoid re-sending a previous assignment here. Probably doesn't
-             * matter too much, though, so consider removing if statement.
-             *)
-            if id_overlay = [] then acc
-            else (id, exec_id :: id_overlay) :: acc
-          ) common [] in
+        let (common, (outdated_computation, new_computation)) = 
+          chop_common old_entries entries in
+        let (common_execs, routing) = List.fold_right
+          (fun (id, exec_id) (acc, acc_route) ->
+            let id_overlay, routes = set_overlay tasks id exec_id overlay st in
+            if id_overlay = [] then (acc, acc_route)
+            else (id, exec_id :: id_overlay) :: acc, routes @ acc_route
+            ) common ([], []) in
         let tip = if common = [] then !initial_state else snd (CList.last common) in
         Queue.push (`EditAt tip) tasks;
 
-        let new_computation' = List.map (fun (id, _) -> id, Stateid.fresh ()) new_computation in
+        let new_computation' = List.map 
+          (fun (id, _) -> id, Stateid.fresh ()) 
+          new_computation in
 
-        (* TODO: Adding to the queue here is a bit overkill, can be combined with setting the assignment. *)
         ignore(List.fold_left
           (fun curr_tip (cid, exec_id) -> add tasks exec_id curr_tip cid 
             (the_command st cid))
           tip new_computation');
+        let (overlay_execs, routing') =
+          List.fold_right (fun (id, exec_id) (acc, acc_route) ->
+            let id_overlay, routes = set_overlay tasks id exec_id overlay st in
+            (id, exec_id :: id_overlay):: acc, routes @ acc_route) 
+          new_computation' ([], routing) in
         let command_execs =
           List.map (fun (id, _) -> (id, [])) outdated_computation @
-          common_execs @
-          List.map (fun (id, exec_id) -> (id, exec_id :: (set_overlay tasks id exec_id overlay st))) new_computation' in
+          common_execs @ overlay_execs in
         Queue.push `Observe tasks;
         let updated_node =
           match command_execs with
           | [] -> []
-          | _  -> [(name, Node ((common @ new_computation'), perspective, overlay))] in
-
-        let exec_perspective = to_exec_list perspective command_execs in
-        Stm.set_perspective exec_perspective;
-
-        (command_execs, updated_node)
+          | _  -> [(name, 
+                    Node ((common @ new_computation'), perspective, overlay))]
+        in
+        Stm.set_perspective (to_exec_list perspective command_execs);
+        (command_execs, updated_node, routing')
       else
-        ([], []))
+        ([], [], []))
     in
-    let command_execs = List.flatten (List.map fst updated) in
-    let updated_nodes = List.flatten (List.map snd updated) in
-    let state' =
-      define_version v_new (List.fold_left put_node new_version updated_nodes) st in
+    let command_execs = List.flatten (List.map (fun (e, _, _) -> e) updated) in
+    let updated_nodes = List.flatten (List.map (fun (_, n, _) -> n) updated) in
+    let updated_route = List.flatten (List.map (fun (_, _, r) -> r) updated) in
+    let st' = set_route st updated_route in
+    let state' = define_version v_new
+      (List.fold_left put_node new_version updated_nodes) st' in
     (command_execs, tasks, state')
 
 let execute stmq task_queue =
@@ -295,82 +310,85 @@ let rest_printer exec_id exec_id_str = function
       let position = Position.id_only exec_id_str in
       Coq_output.status position [Xml_datatype.Element ("finished", [], [])];
       true
-  | Feedback.Message { Feedback.message_content = s } ->
-      let position = Position.id_only exec_id_str in
-      writeln position s;
-      true
-  | _ -> false
+    | Feedback.Message { Feedback.message_content = s } ->
+        let position = Position.id_only exec_id_str in
+        (match the_route !global_state exec_id with
+        | None -> writeln position s
+        | Some i -> () (* TODO: make report with instance id *)
+        ); 
+        true
+    | _ -> false
 
-type entry_location =
-  | Local of string
-  | ExtFile of string
+  type entry_location =
+    | Local of string
+    | ExtFile of string
 
-module S = struct type t = string * string * string let compare = compare end
-module M = CMap.Make(S)
-let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
-let lookup m k cont =
-  try cont (M.find k !m); true
-  with Not_found -> false
+  module S = struct type t = string * string * string let compare = compare end
+  module M = CMap.Make(S)
+  let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
+  let lookup m k cont =
+    try cont (M.find k !m); true
+    with Not_found -> false
 
-(* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
-let load_globs (f: string) (id: string) =
-  let bare_name = Filename.chop_extension f in
-  let glob_name = bare_name ^ ".glob" in
-  let v_name = bare_name ^ ".v" in
-  try
-  let c = open_in glob_name in
+  (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
+  let load_globs (f: string) (id: string) =
+    let bare_name = Filename.chop_extension f in
+    let glob_name = bare_name ^ ".glob" in
+    let v_name = bare_name ^ ".v" in
     try
-    while true do
-      let s = input_line c in
-      try Scanf.sscanf s "%s %d:%d %s %s"
-        (fun ty loc1 loc2 secpath name ->
-           let loc = Loc.make_loc (loc1, loc2) in
-           (* TODO: Store interpreted type, not raw ty string *)
-           let ty = if ty = "prf" then "thm" else ty in
-           def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
-      with Scanf.Scan_failure _ | End_of_file -> ()
-    done
-    with End_of_file ->
-      close_in c
-  with Sys_error s ->
-    warning_msg (Position.id_only id)
-      ("Warning: " ^ glob_name ^
-       ": No such file or directory (links will not be available)")
+    let c = open_in glob_name in
+      try
+      while true do
+        let s = input_line c in
+        try Scanf.sscanf s "%s %d:%d %s %s"
+          (fun ty loc1 loc2 secpath name ->
+             let loc = Loc.make_loc (loc1, loc2) in
+             (* TODO: Store interpreted type, not raw ty string *)
+             let ty = if ty = "prf" then "thm" else ty in
+             def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
+        with Scanf.Scan_failure _ | End_of_file -> ()
+      done
+      with End_of_file ->
+        close_in c
+    with Sys_error s ->
+      warning_msg (Position.id_only id)
+        ("Warning: " ^ glob_name ^
+         ": No such file or directory (links will not be available)")
 
-let glob_printer exec_id exec_id_str = function
-  | Feedback.FileLoaded(dirname, filename) ->
-      load_globs filename exec_id_str; true
-  | Feedback.GlobDef (loc, name, secpath, ty) ->
-      (* TODO: This works for proofs, but will break on other 'synonyms' *)
-      let ty = if ty = "prf" then "thm" else  ty in
-      def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
-  | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
-      let _li, _lj = Loc.unloc loc in
-      lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
-        let (i, j) = Loc.unloc loc in
-        let (dest_i, dest_j) = Loc.unloc dest in
-        let location =
-          match dest_id with
-          | Local dest_id' -> "def_id", dest_id'
-          | ExtFile fname  -> "def_file", fname
-          in
-        let report_body = location :: ["id", exec_id_str;
-                               "offset", (string_of_int (i + 1)); 
-                               "end_offset", (string_of_int (j + 1));
+  let glob_printer exec_id exec_id_str = function
+    | Feedback.FileLoaded(dirname, filename) ->
+        load_globs filename exec_id_str; true
+    | Feedback.GlobDef (loc, name, secpath, ty) ->
+        (* TODO: This works for proofs, but will break on other 'synonyms' *)
+        let ty = if ty = "prf" then "thm" else  ty in
+        def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
+    | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
+        let _li, _lj = Loc.unloc loc in
+        lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
+          let (i, j) = Loc.unloc loc in
+          let (dest_i, dest_j) = Loc.unloc dest in
+          let location =
+            match dest_id with
+            | Local dest_id' -> "def_id", dest_id'
+            | ExtFile fname  -> "def_file", fname
+            in
+          let report_body = location :: ["id", exec_id_str;
+                                 "offset", (string_of_int (i + 1)); 
+                                 "end_offset", (string_of_int (j + 1));
 
-                               "def_offset", (string_of_int (dest_i + 1));
-                               "def_end_offset", (string_of_int (dest_j + 1));
-                               "name", name;
-                               "kind", ty] in
+                                 "def_offset", (string_of_int (dest_i + 1));
+                                 "def_end_offset", (string_of_int (dest_j + 1));
+                                 "name", name;
+                                 "kind", ty] in
 
-        let position = position_of_loc loc exec_id_str in
-        Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
-      )
-  | _ -> false
+          let position = position_of_loc loc exec_id_str in
+          Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
+        )
+    | _ -> false
 
-let state_printer exec_id exec_id_str msg =
-  writeln (Position.id_only exec_id_str) (Pp.string_of_ppcmds msg);
-  true
+  let state_printer exec_id exec_id_str msg =
+    writeln (Position.id_only exec_id_str) (Pp.string_of_ppcmds msg);
+    true
 
 let lift f {Feedback.id = id; Feedback.content} =
   match id with
