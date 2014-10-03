@@ -16,9 +16,9 @@ let serial = counter ()
 
 let standard_message ch make_serial pos body = 
   if body <> "" then
-    let properties_pos = (properties_of pos) in
-    let properties = if make_serial then Properties.put (Markup.serialN, string_of_int (serial ()))
-                                                        properties_pos 
+    let properties_pos = properties_of pos in
+    let properties = if make_serial then
+      Properties.put (Markup.serialN, string_of_int (serial ())) properties_pos
                                     else properties_pos in
     send_message ch properties (Pide_xml.Encode.string body)
 
@@ -28,6 +28,17 @@ let init_message message =
   send_message initN [] xml_message
 
 let writeln = standard_message writelnN true 
+
+let result pos instance message =
+  let properties = properties_of pos in
+  let properties = Properties.put (Markup.serialN, string_of_int (serial ()))
+                                  properties in
+  let properties = Properties.put (Markup.instanceN, string_of_int instance)
+                                  properties in
+  let body = Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string message)
+  in
+  send_message resultN properties [body]
+
 let error_msg pos = standard_message errorN true pos 
 let warning_msg pos = standard_message warningN true pos
 let report pos body = standard_message reportN false pos  (Yxml.implode [Yxml.string_of_body body])

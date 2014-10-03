@@ -12,6 +12,7 @@ val initN: string
 val statusN: string
 val reportN: string
 val report: Markup.t
+val resultN: string
 val writelnN: string
 val warningN: string
 val errorN: string

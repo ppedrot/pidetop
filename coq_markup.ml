@@ -1,5 +1,4 @@
 (* markup elements *)
-
 let markup_elem elem = ((elem, []): Markup.t)
 
 
@@ -27,6 +26,7 @@ let initN = "init"
 let statusN = "status"
 let reportN = "report"
 let report = markup_elem reportN
+let resultN = "result"
 let writelnN = "writeln"
 let warningN = "warning"
 let errorN = "error"

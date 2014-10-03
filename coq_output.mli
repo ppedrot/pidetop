@@ -4,6 +4,8 @@ val init_message : string -> unit
 (* Write a line *)
 val writeln : Position.t -> string -> unit
 
+val result : Position.t -> int -> string -> unit
+
 (* Report an error message. 
  * Takes the position the error occurred (built by any of the Position functions) and an error message. 
  *)

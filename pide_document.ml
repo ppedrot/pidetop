@@ -314,7 +314,7 @@ let rest_printer exec_id exec_id_str = function
         let position = Position.id_only exec_id_str in
         (match the_route !global_state exec_id with
         | None -> writeln position s
-        | Some i -> () (* TODO: make report with instance id *)
+        | Some i -> result position i s
         ); 
         true
     | _ -> false

@@ -9,11 +9,10 @@ let properties more_props ((elem, props): t) =
 
 
 (* misc properties *)
-
-let nameN = "name"
-let name a = properties [(nameN, a)]
-
+let instanceN = "instance"
 let kindN = "kind"
-
+let nameN = "name"
 let serialN = "serial"
+
+let name a = properties [(nameN, a)]
 
