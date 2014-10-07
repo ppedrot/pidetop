@@ -41,7 +41,7 @@ type version = Version of (string * node) list
 let empty_version = Version []
 
 type state =
-  State of (version_id * version) list * (command_id * string) list *
+  State of (version_id * version) list * (command_id * (bool * string)) list *
            routing_table
 
 let init_state = State ([(no_id, empty_version)], [], [])
@@ -69,7 +69,7 @@ let remove_versions (ids: version_id list) (s: state) =
 let the_version (State (versions, _, _)) (id: version_id) =
   List.assoc id versions
 
-let the_command (State (_, commands, _)) (id: command_id) =
+let the_command (State (_, commands, _)) (id: command_id) : (bool * string) =
   List.assoc id commands
 
 let the_route (State (_, _, routes)) (id: exec_id): instance_id option =
@@ -87,10 +87,10 @@ type node_edit =
   | Perspective of (command_id list * overlay)
 type edit = string * node_edit
 
-let define_command id (text: string) (State (versions, commands, routes)) =
+let define_command id (is_ignored: bool) (text: string) (State (versions, commands, routes)) =
   let commands' =
     if List.mem_assoc id commands then raise (Failure "Dup")
-    else (id, text ) :: commands
+    else (id, (is_ignored, text)) :: commands
   in State (versions, commands', routes)
 
 let default_node name nodes = 
@@ -152,97 +152,100 @@ let edit_nodes (Version nodes) (name, node_edit) =
           update_node name (fun x -> List.fold_left edit_node x edits) nodes
       | Perspective (commands, overlay) ->
           update_node name (fun n ->
-            set_perspective n commands overlay) nodes
+              set_perspective n commands overlay) nodes
 
-    )
+      )
 
-let put_node (Version nodes) (name, node) =
-  Version ((name, node) :: List.remove_assoc name nodes)
+  let put_node (Version nodes) (name, node) =
+    Version ((name, node) :: List.remove_assoc name nodes)
 
-let get_node nodes name = 
-  try List.assoc name nodes
-  with Not_found -> empty_node
+  let get_node nodes name = 
+    try List.assoc name nodes
+    with Not_found -> empty_node
 
-let rec chop_common (entries0 : entries) (entries1: entries) =
-  match (entries0, entries1) with
-  | (x :: rest0, y :: rest1) when x = y -> 
-      let (common', rest') = chop_common rest0 rest1 in
-      (x :: common', rest')
-  | _ -> ([], (entries0, entries1))
-
-
-let add task_queue exec_id tip edit_id text =
-  Queue.push (`Add (lazy (
-  let position = Position.id_only (print_exec_id exec_id) in
-  Coq_output.status position [Xml_datatype.Element ("running", [], [])];
-  try
-    ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
-    let ast = Stm.print_ast exec_id in
-    Coq_output.report (Position.id_only (Stateid.to_string exec_id)) [ast];
-    Some exec_id
-  with e when Errors.noncritical e -> None))) task_queue;
-  exec_id
-
-let query task_queue at query_id text =
-  Queue.push (`Query (lazy (
-    let position = Position.id_only (print_exec_id query_id) in
-    Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
-    Stm.query ~at:at ~report_with:query_id text))) task_queue
+  let rec chop_common (entries0 : entries) (entries1: entries) =
+    match (entries0, entries1) with
+    | (x :: rest0, y :: rest1) when x = y -> 
+        let (common', rest') = chop_common rest0 rest1 in
+        (x :: common', rest')
+    | _ -> ([], (entries0, entries1))
 
 
-let set_overlay stmq cid at ov st: exec_id list * routing_table =
-  List.fold_right (fun (oid, (command, args)) (acc, rt) ->
-    if command = "coq_query" then
-      match args with 
-      | instance :: query_text :: args ->
-        if oid = cid then
-          let eid = Stateid.fresh () in
-          let iid = int_of_string instance in
-          query stmq at eid query_text;
-          (eid :: acc, (eid, iid) :: rt)
-        else acc, rt
-      | _ -> acc, rt
-    else acc, rt)
-  ov ([], [])
+  let add task_queue exec_id tip edit_id text =
+    Queue.push (`Add (lazy (
+    let position = Position.id_only (print_exec_id exec_id) in
+    Coq_output.status position [Xml_datatype.Element ("running", [], [])];
+    try
+      ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
+      let ast = Stm.print_ast exec_id in
+      Coq_output.report (Position.id_only (Stateid.to_string exec_id)) [ast];
+      Some exec_id
+    with e when Errors.noncritical e -> None))) task_queue;
+    exec_id
 
-let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
-  List.fold_right
-    (fun (c: command_id) (acc: exec_id list) ->
-      if (List.mem_assoc c execs) then
-        match List.assoc c execs with
-        | [] -> acc
-        | es -> es @ acc
-      else acc)
-    p
-    []
+  let query task_queue at query_id text =
+    Queue.push (`Query (lazy (
+      let position = Position.id_only (print_exec_id query_id) in
+      Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
+      Stm.query ~at:at ~report_with:query_id text))) task_queue
 
-let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
-  (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
-  let Version old_nodes as old_version = the_version st v_old in
-  let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
-  let tasks = Queue.create () in
-  let updated =
-    new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
-      if List.mem_assoc name edits then
-        let Node (old_entries, _, _) = get_node old_nodes name in
-        let (common, (outdated_computation, new_computation)) = 
-          chop_common old_entries entries in
-        let (common_execs, routing) = List.fold_right
-          (fun (id, exec_id) (acc, acc_route) ->
-            let id_overlay, routes = set_overlay tasks id exec_id overlay st in
-            if id_overlay = [] then (acc, acc_route)
-            else (id, exec_id :: id_overlay) :: acc, routes @ acc_route
-            ) common ([], []) in
-        let tip = if common = [] then !initial_state else snd (CList.last common) in
-        Queue.push (`EditAt tip) tasks;
 
-        let new_computation' = List.map 
-          (fun (id, _) -> id, Stateid.fresh ()) 
-          new_computation in
+  let set_overlay stmq cid at ov st: exec_id list * routing_table =
+    List.fold_right (fun (oid, (command, args)) (acc, rt) ->
+      if command = "coq_query" then
+        match args with 
+        | instance :: query_text :: args ->
+          if oid = cid then
+            let eid = Stateid.fresh () in
+            let iid = int_of_string instance in
+            query stmq at eid query_text;
+            (eid :: acc, (eid, iid) :: rt)
+          else acc, rt
+        | _ -> acc, rt
+      else acc, rt)
+    ov ([], [])
 
-        ignore(List.fold_left
-          (fun curr_tip (cid, exec_id) -> add tasks exec_id curr_tip cid 
-            (the_command st cid))
+  let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
+    List.fold_right
+      (fun (c: command_id) (acc: exec_id list) ->
+        if (List.mem_assoc c execs) then
+          match List.assoc c execs with
+          | [] -> acc
+          | es -> es @ acc
+        else acc)
+      p
+      []
+
+  let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
+    (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
+    let Version old_nodes as old_version = the_version st v_old in
+    let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
+    let tasks = Queue.create () in
+    let updated =
+      new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
+        if List.mem_assoc name edits then
+          let Node (old_entries, _, _) = get_node old_nodes name in
+          let (common, (outdated_computation, new_computation)) = 
+            chop_common old_entries entries in
+          let (common_execs, routing) = List.fold_right
+            (fun (id, exec_id) (acc, acc_route) ->
+              let id_overlay, routes = set_overlay tasks id exec_id overlay st in
+              if id_overlay = [] then (acc, acc_route)
+              else (id, exec_id :: id_overlay) :: acc, routes @ acc_route
+              ) common ([], []) in
+          let tip = if common = [] then !initial_state else snd (CList.last common) in
+          Queue.push (`EditAt tip) tasks;
+
+          let new_computation' = List.map 
+            (fun (id, _) -> id, Stateid.fresh ()) 
+            new_computation in
+    
+          ignore(List.fold_left
+            (fun curr_tip (cid, exec_id) -> 
+              let (is_ignored, cmd_text) = the_command st cid in
+              if not is_ignored then add tasks exec_id curr_tip cid cmd_text
+              else curr_tip
+            )
           tip new_computation');
         let (overlay_execs, routing') =
           List.fold_right (fun (id, exec_id) (acc, acc_route) ->

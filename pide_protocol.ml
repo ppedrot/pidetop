@@ -1,6 +1,5 @@
 open Coq_output
 open Coq_input
-open Decl_kinds
 
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
@@ -38,9 +37,10 @@ let initialize_commands () =
 
   register_protocol_command "Document.define_command" (fun stmq args ->
     match args with
-    | [id;_;_;text] ->
+    | [id; is_ignored; text] ->
         let cmd_id = Pide_document.parse_id id in
-        let new_state = Pide_document.define_command cmd_id text in
+        let is_ignored = Pide_xml.Decode.bool (Yxml.parse_body is_ignored) in
+        let new_state = Pide_document.define_command cmd_id is_ignored text in
         Pide_document.change_state new_state
     | _ -> assert false); 
 
