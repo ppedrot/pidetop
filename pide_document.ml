@@ -322,76 +322,78 @@ let rest_printer exec_id exec_id_str = function
         true
     | _ -> false
 
-  type entry_location =
-    | Local of string
-    | ExtFile of string
+type entry_location =
+  | Local of string
+  | ExtFile of string
 
-  module S = struct type t = string * string * string let compare = compare end
-  module M = CMap.Make(S)
-  let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
-  let lookup m k cont =
-    try cont (M.find k !m); true
-    with Not_found -> false
+module S = struct type t = string * string * string let compare = compare end
+module M = CMap.Make(S)
+let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
+let lookup m k cont =
+  try cont (M.find k !m); true
+  with Not_found -> false
 
-  (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
-  let load_globs (f: string) (id: string) =
-    let bare_name = Filename.chop_extension f in
-    let glob_name = bare_name ^ ".glob" in
-    let v_name = bare_name ^ ".v" in
+(* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
+let load_globs (f: string) (id: string) =
+  let bare_name = Filename.chop_extension f in
+  let glob_name = bare_name ^ ".glob" in
+  let v_name = bare_name ^ ".v" in
+  try
+  let c = open_in glob_name in
     try
-    let c = open_in glob_name in
-      try
-      while true do
-        let s = input_line c in
-        try Scanf.sscanf s "%s %d:%d %s %s"
-          (fun ty loc1 loc2 secpath name ->
-             let loc = Loc.make_loc (loc1, loc2) in
-             (* TODO: Store interpreted type, not raw ty string *)
-             let ty = if ty = "prf" then "thm" else ty in
-             def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
-        with Scanf.Scan_failure _ | End_of_file -> ()
-      done
-      with End_of_file ->
-        close_in c
-    with Sys_error s ->
-      warning_msg (Position.id_only id)
-        ("Warning: " ^ glob_name ^
-         ": No such file or directory (links will not be available)")
+    while true do
+      let s = input_line c in
+      try Scanf.sscanf s "%s %d:%d %s %s"
+        (fun ty loc1 loc2 secpath name ->
+           let loc = Loc.make_loc (loc1, loc2) in
+           (* TODO: Store interpreted type, not raw ty string *)
+           let ty = if ty = "prf" then "thm" else ty in
+           def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
+      with Scanf.Scan_failure _ | End_of_file -> ()
+    done
+    with End_of_file ->
+      close_in c
+  with Sys_error s ->
+    warning_msg (Position.id_only id)
+      ("Warning: " ^ glob_name ^
+       ": No such file or directory (links will not be available)")
 
-  let glob_printer exec_id exec_id_str = function
-    | Feedback.FileLoaded(dirname, filename) ->
-        load_globs filename exec_id_str; true
-    | Feedback.GlobDef (loc, name, secpath, ty) ->
-        (* TODO: This works for proofs, but will break on other 'synonyms' *)
-        let ty = if ty = "prf" then "thm" else  ty in
-        def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
-    | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
-        let _li, _lj = Loc.unloc loc in
-        lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
-          let (i, j) = Loc.unloc loc in
-          let (dest_i, dest_j) = Loc.unloc dest in
-          let location =
-            match dest_id with
-            | Local dest_id' -> "def_id", dest_id'
-            | ExtFile fname  -> "def_file", fname
-            in
-          let report_body = location :: ["id", exec_id_str;
-                                 "offset", (string_of_int (i + 1)); 
-                                 "end_offset", (string_of_int (j + 1));
+let glob_printer exec_id exec_id_str = function
+  | Feedback.FileLoaded(dirname, filename) ->
+      load_globs filename exec_id_str; true
+  | Feedback.GlobDef (loc, name, secpath, ty) ->
+      (* TODO: This works for proofs, but will break on other 'synonyms' *)
+      let ty = if ty = "prf" then "thm" else  ty in
+      def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
+  | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
+      let _li, _lj = Loc.unloc loc in
+      lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
+        let (i, j) = Loc.unloc loc in
+        let (dest_i, dest_j) = Loc.unloc dest in
+        let location =
+          match dest_id with
+          | Local dest_id' -> "def_id", dest_id'
+          | ExtFile fname  -> "def_file", fname
+          in
+        let report_body = location :: ["id", exec_id_str;
+                               "offset", (string_of_int (i + 1));
+                               "end_offset", (string_of_int (j + 1));
 
-                                 "def_offset", (string_of_int (dest_i + 1));
-                                 "def_end_offset", (string_of_int (dest_j + 1));
-                                 "name", name;
-                                 "kind", ty] in
+                               "def_offset", (string_of_int (dest_i + 1));
+                               "def_end_offset", (string_of_int (dest_j + 1));
+                               "name", name;
+                               "kind", ty] in
 
-          let position = position_of_loc loc exec_id_str in
-          Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
-        )
-    | _ -> false
+        let position = position_of_loc loc exec_id_str in
+        Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
+      )
+  | _ -> false
 
-  let state_printer exec_id exec_id_str msg =
-    writeln (Position.id_only exec_id_str) (Pp.string_of_ppcmds msg);
-    true
+let dependency_printer exec_id exec_id_str = function
+  | Feedback.FileDependency (from, depends_on) ->
+      (*TODO: Report to Scala, process there. *)
+      true
+  | _ -> false
 
 let lift f {Feedback.id = id; Feedback.content} =
   match id with
@@ -408,7 +410,7 @@ let (>>=) f1 f2 feedback =
 let init_printers () =
   Pp.set_feeder (fun f ->
     ignore(((lift error_printer) >>= goal_printer >>=
-            glob_printer >>= rest_printer) f));
+            glob_printer >>= dependency_printer >>= rest_printer) f));
   Pp.log_via_feedback ()
 
 let initialize () =
