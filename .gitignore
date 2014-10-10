@@ -39,6 +39,7 @@
 *.native
 revision
 TAGS
+Makefile
 .DS_Store
 .pc
 bin/

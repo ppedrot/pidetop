@@ -1,10 +1,40 @@
-# PIDEtop
+PIDEtop
+=======
 
 This repository provides a toplevel plugin to make Coq speak the PIDE protocol.
 
-## Building
+
+Building
+--------
+
+Building is driven by coq_makefile and make:
+
+$ coq_makefile -f Make > Makefile
+$ make install-toploop
+
+See compatibility, below, for notes.
 
 
-## Compatibility
+Compatibility
+-------------
 
+As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to work with the following versions of Coq and PIDE:
 
+### Coq
+- Branch: PIDE at https://bitbucket.org/Carst/coq-pide)
+- Revision: f672243b638f921928ae8d5290b445035c1fd978
+- Notes:
+    * The branch is not yet merged into Coq/trunk, but will hopefully be done soon.
+    * This revision adds a variant to the variant type of Feedback, that PIDEtop reacts to.
+    * The make install-toploop  installs into a directory not searched for if Coq is configured with -local. I know of the following workarounds (where $COQ is the location of your coq sources):
+        + Make a symlink to $COQ/toploop/pidetop.cmxs in either $COQ/stm/ or $COQ/ide/
+        + Start coqtop with -I $COQ/toploop
+        + Configure Coq with -prefix instead of -local, and make install Coq.
+
+### PIDE
+- Branch: default at https://bitbucket.org/Carst/pide_notes/
+- Revision: 16be1c3e83f795a879765eaffde7cb64a3a19f3e
+- Notes:
+    * This revision redefines the define_command protocol message for Coq sessions: PIDE notifies Coq which commands should be ignored.
+    * The PIDE_notes repository is a Mercurial repository, not a Git one.
+    * The README.coq file in the repo provides a brief overview on how to run Isabelle/jEdit with Coq. These notes are a bit outdated/broken. The main problem is that ./bin/isabelle build no longer compiles the jars, and therefore does not build Pure, or creates the jEdit folder. A partial solution is to get a clean version of Isabelle from http://isabelle.in.tum.de and use the ./bin/isabelle build script from that distribtion to obtain a Pure heap. That clean version can also be used instead of the Tools/jEdit/dist/jars relative to the repository.
