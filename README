@@ -1,10 +1,10 @@
-== Description
+== Description ==
 
 This repository provides a toplevel plugin to make Coq speak the PIDE protocol.
 
-== Building
+== Building ==
 
 
-== Compatibility
+== Compatibility ==
 
 
