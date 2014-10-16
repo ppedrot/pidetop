@@ -10,6 +10,7 @@ Building
 Building is driven by coq_makefile and make:
 
 $ coq_makefile -f Make > Makefile
+
 $ make install-toploop
 
 See compatibility, below, for notes.
