@@ -21,15 +21,11 @@ Compatibility
 As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to work with the following versions of Coq and PIDE:
 
 ### Coq
-- Branch: PIDE at https://bitbucket.org/Carst/coq-pide)
+- Branch: trunk at https://github.com/coq/coq
+- Revision: db8e0d7ecaf233ae73705d2f57635a38f8825dad
 - Revision: f672243b638f921928ae8d5290b445035c1fd978
 - Notes:
-    * The branch is not yet merged into Coq/trunk, but will hopefully be done soon.
-    * This revision adds a variant to the variant type of Feedback, that PIDEtop reacts to.
-    * The make install-toploop  installs into a directory not searched for if Coq is configured with -local. I know of the following workarounds (where $COQ is the location of your coq sources):
-        + Make a symlink to $COQ/toploop/pidetop.cmxs in either $COQ/stm/ or $COQ/ide/
-        + Start coqtop with -I $COQ/toploop
-        + Configure Coq with -prefix instead of -local, and make install Coq.
+    * Some revisions earlier than this might work, but this one has been tested.
 
 ### PIDE
 - Branch: default at https://bitbucket.org/Carst/pide_notes/
