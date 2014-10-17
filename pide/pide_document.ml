@@ -296,7 +296,8 @@ let goal_printer exec_id exec_id_str = function
        else (
          already_printed := Stateid.Set.add exec_id !already_printed;
          let pos = position_of_loc loc exec_id_str in
-         writeln pos goalstate));
+         let source = Properties.put ("source", "goal") Properties.empty in
+         writeln pos ~props:source goalstate));
       true
   | _ -> false
 
@@ -316,7 +317,9 @@ let rest_printer exec_id exec_id_str = function
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only exec_id_str in
         (match the_route !global_state exec_id with
-        | None -> writeln position s
+        | None ->
+            let source = Properties.put ("source", "query") Properties.empty in
+            writeln position ~props:source s
         | Some i -> result position i s
         ); 
         true

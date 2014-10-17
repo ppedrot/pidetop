@@ -1,6 +1,8 @@
 open Coq_markup
 open Position
 
+type standard_message_t = Position.t -> ?props: Properties.t -> string -> unit
+
 let send_message ch props body =
   let xml_header = Xml_datatype.Element (ch, props, []) in
   Yxml.yxml_send xml_header body
@@ -14,12 +16,15 @@ let counter () =
 
 let serial = counter ()
 
-let standard_message ch make_serial pos body = 
+let standard_message ch make_serial pos
+  ?props:(p=Properties.empty) body =
   if body <> "" then
     let properties_pos = properties_of pos in
-    let properties = if make_serial then
-      Properties.put (Markup.serialN, string_of_int (serial ())) properties_pos
-                                    else properties_pos in
+    let properties = Properties.append properties_pos p in
+    let properties =
+      if make_serial then
+        Properties.put (Markup.serialN, string_of_int (serial ())) properties
+      else properties in
     send_message ch properties (Pide_xml.Encode.string body)
 
 

@@ -1,18 +1,19 @@
 (* Send initialization message *)
 val init_message : string -> unit
 
+type standard_message_t = Position.t -> ?props: Properties.t -> string -> unit
+
 (* Write a line *)
-val writeln : Position.t -> string -> unit
+val writeln : standard_message_t
 
 val result : Position.t -> int -> string -> unit
 
 (* Report an error message. 
- * Takes the position the error occurred (built by any of the Position functions) and an error message. 
  *)
-val error_msg : Position.t -> string -> unit
+val error_msg : standard_message_t
 
 (* Report a warning, with the id of where the warning occurs. *)
-val warning_msg : Position.t -> string -> unit
+val warning_msg : standard_message_t
 
 (* Lexer reports from the prover: takes the execution id (as a string) to reported on, and some syntax tree (as string)  *)
 (* TODO: Make second argument report type? *)
