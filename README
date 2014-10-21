@@ -23,10 +23,10 @@ As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to 
 
 ### Coq
 - Branch: trunk at https://github.com/coq/coq
-- Revision: db8e0d7ecaf233ae73705d2f57635a38f8825dad
-- Revision: f672243b638f921928ae8d5290b445035c1fd978
+- Revision: `db8e0d7ecaf233ae73705d2f57635a38f8825dad`
 - Notes:
     * Other revisions on this branch might work, but this one has been tested.
+    
 
 ### PIDE
 - Branch: default at https://bitbucket.org/Carst/pide_notes/
