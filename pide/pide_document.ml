@@ -377,8 +377,10 @@ module S = struct type t = entry_type * string * string let compare = compare en
 module M = CMap.Make(S)
 let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
 let lookup m k cont =
-  try cont (M.find k !m); true
-  with Not_found -> false
+  (try cont (M.find k !m)
+  with Not_found -> ());
+  true
+
 
 (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
 let load_globs (f: string) (id: int) =
