@@ -30,7 +30,6 @@ let new_id () =
  * arguments *)
 type overlay = (command_id * (string * (string list))) list
 (* Routing queries to instances. *)
-type routing_table = (exec_id * instance_id) list
 type perspective = command_id list
 
 type entries = (command_id * exec_id) list
@@ -41,40 +40,33 @@ type version = Version of (string * node) list
 let empty_version = Version []
 
 type state =
-  State of (version_id * version) list * (command_id * (bool * string)) list *
-           routing_table
+  State of (version_id * version) list * (command_id * (bool * string)) list
 
-let init_state = State ([(no_id, empty_version)], [], [])
+let init_state = State ([(no_id, empty_version)], [])
 let global_state = ref init_state
 let change_state f = global_state := f !global_state
 
-let set_route (State (v, c, _)) table = State (v, c, table)
-
-let define_version id version (State (versions, commands, routes)) =
+let define_version id version (State (versions, commands)) =
   let versions' =
     if List.mem_assoc id versions then raise (Failure "Dup")
     else (id, version) :: versions
-  in State (versions', commands, routes) (* TODO... *)
+  in State (versions', commands) (* TODO... *)
 
 
-let remove_version (id: version_id) (State (versions, commands, routes)) =
+let remove_version (id: version_id) (State (versions, commands)) =
   let versions' =
     if not (List.mem_assoc id versions) then raise (Failure "Does not exist")
     else List.remove_assoc id versions
-  in State(versions', commands, routes)
+  in State(versions', commands)
 
 let remove_versions (ids: version_id list) (s: state) =
   List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
 
-let the_version (State (versions, _, _)) (id: version_id) =
+let the_version (State (versions, _)) (id: version_id) =
   List.assoc id versions
 
-let the_command (State (_, commands, _)) (id: command_id) : (bool * string) =
+let the_command (State (_, commands)) (id: command_id) : (bool * string) =
   List.assoc id commands
-
-let the_route (State (_, _, routes)) (id: exec_id): instance_id option =
-  try Some (List.assoc id routes)
-  with Not_found -> None
 
 let parse_id = int_of_string
 let print_id = string_of_int
@@ -87,11 +79,11 @@ type node_edit =
   | Perspective of (command_id list * overlay)
 type edit = string * node_edit
 
-let define_command id (is_ignored: bool) (text: string) (State (versions, commands, routes)) =
+let define_command id (is_ignored: bool) (text: string) (State (versions, commands)) =
   let commands' =
     if List.mem_assoc id commands then raise (Failure "Dup")
     else (id, (is_ignored, text)) :: commands
-  in State (versions, commands', routes)
+  in State (versions, commands')
 
 let default_node name nodes = 
   if List.mem_assoc name nodes then nodes
@@ -183,31 +175,31 @@ let edit_nodes (Version nodes) (name, node_edit) =
     with e when Errors.noncritical e -> None))) task_queue;
     exec_id
 
-  let query task_queue at query_id text =
+  let query task_queue at route_id query_id text =
     Queue.push (`Query (lazy (
       let position = Position.id_only (print_exec_id query_id) in
       Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
-      try Stm.query ~at:at ~report_with:query_id text
+      try Stm.query ~at:at ~report_with:(query_id,route_id) text
       with e when Errors.noncritical e ->
         let e = Errors.push e in
         let msg = Pp.string_of_ppcmds (Errors.print e) in
         prerr_endline msg))) task_queue
 
 
-  let set_overlay stmq cid at ov st: exec_id list * routing_table =
-    List.fold_right (fun (oid, (command, args)) (acc, rt) ->
+  let set_overlay stmq cid at ov st: exec_id list =
+    List.fold_right (fun (oid, (command, args)) acc ->
       if command = "coq_query" then
         match args with 
         | instance :: query_text :: args ->
           if oid = cid then
             let eid = Stateid.fresh () in
             let iid = int_of_string instance in
-            query stmq at eid query_text;
-            (eid :: acc, (eid, iid) :: rt)
-          else acc, rt
-        | _ -> acc, rt
-      else acc, rt)
-    ov ([], [])
+            query stmq at iid eid query_text;
+            (eid :: acc)
+          else acc
+        | _ -> acc
+      else acc)
+    ov []
 
   let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
     List.fold_right
@@ -231,13 +223,15 @@ let edit_nodes (Version nodes) (name, node_edit) =
           let Node (old_entries, _, _) = get_node old_nodes name in
           let (common, (outdated_computation, new_computation)) = 
             chop_common old_entries entries in
-          let (common_execs, routing) = List.fold_right
-            (fun (id, exec_id) (acc, acc_route) ->
-              let id_overlay, routes = set_overlay tasks id exec_id overlay st in
-              if id_overlay = [] then (acc, acc_route)
-              else (id, exec_id :: id_overlay) :: acc, routes @ acc_route
-              ) common ([], []) in
-          let tip = if common = [] then !initial_state else snd (CList.last common) in
+          let common_execs = List.fold_right
+            (fun (id, exec_id) acc ->
+              let id_overlay = set_overlay tasks id exec_id overlay st in
+              if id_overlay = [] then acc
+              else (id, exec_id :: id_overlay) :: acc
+              ) common [] in
+          let tip =
+            if common = [] then !initial_state
+            else snd (CList.last common) in
           Queue.push (`EditAt tip) tasks;
 
           let new_computation' = List.map 
@@ -251,11 +245,11 @@ let edit_nodes (Version nodes) (name, node_edit) =
               else curr_tip
             )
           tip new_computation');
-        let (overlay_execs, routing') =
-          List.fold_right (fun (id, exec_id) (acc, acc_route) ->
-            let id_overlay, routes = set_overlay tasks id exec_id overlay st in
-            (id, exec_id :: id_overlay):: acc, routes @ acc_route) 
-          new_computation' ([], routing) in
+        let overlay_execs =
+          List.fold_right (fun (id, exec_id) acc ->
+            let id_overlay = set_overlay tasks id exec_id overlay st in
+            (id, exec_id :: id_overlay):: acc) 
+          new_computation' [] in
         let command_execs =
           List.map (fun (id, _) -> (id, [])) outdated_computation @
           common_execs @ overlay_execs in
@@ -267,16 +261,14 @@ let edit_nodes (Version nodes) (name, node_edit) =
                     Node ((common @ new_computation'), perspective, overlay))]
         in
         Stm.set_perspective (to_exec_list perspective command_execs);
-        (command_execs, updated_node, routing')
+        (command_execs, updated_node)
       else
-        ([], [], []))
+        [], [])
     in
-    let command_execs = List.flatten (List.map (fun (e, _, _) -> e) updated) in
-    let updated_nodes = List.flatten (List.map (fun (_, n, _) -> n) updated) in
-    let updated_route = List.flatten (List.map (fun (_, _, r) -> r) updated) in
-    let st' = set_route st updated_route in
+    let command_execs = List.flatten (List.map fst updated) in
+    let updated_nodes = List.flatten (List.map snd updated) in
     let state' = define_version v_new
-      (List.fold_left put_node new_version updated_nodes) st' in
+      (List.fold_left put_node new_version updated_nodes) st in
     (command_execs, tasks, state')
 
 let execute stmq task_queue =
@@ -289,7 +281,7 @@ let position_of_loc loc =
   if Loc.is_ghost loc then Position.id_only
   else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
 
-let goal_printer exec_id exec_id_str = function
+let goal_printer exec_id exec_id_str route = function
   | Feedback.StructuredGoals (loc, goals) ->
       let pos = position_of_loc loc exec_id_str in
       report pos [goals];
@@ -305,7 +297,7 @@ let goal_printer exec_id exec_id_str = function
       true
   | _ -> false
 
-let error_printer exec_id exec_id_str = function
+let error_printer exec_id exec_id_str route = function
   | Feedback.ErrorMsg (loc, txt) ->
     let pos = position_of_loc loc exec_id_str in
     Coq_output.status pos [Xml_datatype.Element ("finished", [], [])];
@@ -313,19 +305,18 @@ let error_printer exec_id exec_id_str = function
     true
   | _ -> false
 
-let rest_printer exec_id exec_id_str = function
+let rest_printer exec_id exec_id_str route = function
   | Feedback.Processed ->
       let position = Position.id_only exec_id_str in
       Coq_output.status position [Xml_datatype.Element ("finished", [], [])];
       true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only exec_id_str in
-        (match the_route !global_state exec_id with
-        | None ->
-            let source = Properties.put ("source", "query") Properties.empty in
-            writeln position ~props:source s
-        | Some i -> result position i s
-        ); 
+        if route <> Feedback.default_route then result position route s
+        else begin
+          let source = Properties.put ("source", "query") Properties.empty in
+          writeln position ~props:source s
+        end;
         true
     | _ -> false
 
@@ -365,7 +356,7 @@ let load_globs (f: string) (id: string) =
       ("Warning: " ^ glob_name ^
        ": No such file or directory (links will not be available)")
 
-let glob_printer exec_id exec_id_str = function
+let glob_printer exec_id exec_id_str route = function
   | Feedback.FileLoaded(dirname, filename) ->
       load_globs filename exec_id_str; true
   | Feedback.GlobDef (loc, name, secpath, ty) ->
@@ -396,16 +387,16 @@ let glob_printer exec_id exec_id_str = function
       )
   | _ -> false
 
-let dependency_printer exec_id exec_id_str = function
+let dependency_printer exec_id exec_id_str route = function
   | Feedback.FileDependency (from, depends_on) ->
       (*TODO: Report to Scala, process there. *)
       true
   | _ -> false
 
-let lift f {Feedback.id = id; Feedback.content} =
+let lift f {Feedback.id; Feedback.content; Feedback.route} =
   match id with
   | Feedback.State exec_id ->
-      f exec_id (print_exec_id exec_id) content
+      f exec_id (print_exec_id exec_id) route content
   | _ -> false
 
 let (>>=) f1 f2 feedback =
