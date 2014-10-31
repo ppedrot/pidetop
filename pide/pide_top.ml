@@ -32,6 +32,14 @@ let () = Coqtop.toploop_init := (fun args ->
 
 let stm_queue = TQueue.create ()
 
+let protect f arg =
+  try Some (f arg)
+  with e when Errors.noncritical e ->
+  let e = Errors.push e in
+  let msg = Pp.string_of_ppcmds (Errors.print e) in
+  prerr_endline msg;
+  None
+
 let main_loop () =
   Sys.catch_break true;
   let t_proto = Thread.create Pide_slave.loop stm_queue in
@@ -46,10 +54,10 @@ let main_loop () =
         | `EditAt here, _ ->
            cur_tip := Some here;
            skipping := false;
-           ignore(Stm.edit_at here)
+           ignore(protect Stm.edit_at here)
         | `Observe, Some id ->
            cur_tip := None;
-           Stm.observe id
+           ignore(protect Stm.observe id)
         | `Observe, None -> ()
         | `Query _, _ when !skipping -> ()
         | `Query f, _ -> Lazy.force f
