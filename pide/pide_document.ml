@@ -187,8 +187,11 @@ let edit_nodes (Version nodes) (name, node_edit) =
     Queue.push (`Query (lazy (
       let position = Position.id_only (print_exec_id query_id) in
       Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
-      Stm.query ~at:at ~report_with:query_id text))) task_queue
-
+      try Stm.query ~at:at ~report_with:query_id text
+      with e when Errors.noncritical e ->
+        let e = Errors.push e in
+        let msg = Pp.string_of_ppcmds (Errors.print e) in
+        prerr_endline msg))) task_queue
 
   let set_overlay stmq cid at ov st: exec_id list * routing_table =
     List.fold_right (fun (oid, (command, args)) (acc, rt) ->
