@@ -7,9 +7,11 @@ This repository provides a toplevel plugin to make Coq speak the PIDE protocol.
 Building
 --------
 
-Building is driven by coq_makefile and make:
+Building is driven by coq_makefile and make
 
-$ coq_makefile -f Make > Makefile
+$ export COQBIN=/your/path/to/coq/trunk/bin/
+
+$ /your/path/to/coq/trunk/bin/coq_makefile -f Make > Makefile
 
 $ make install-toploop
 
