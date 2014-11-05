@@ -412,5 +412,7 @@ let init_printers () =
   Pp.log_via_feedback ()
 
 let initialize () =
-  init_printers ();
+  init_printers ()
+
+let initialize_state () =
   initial_state := Stm.get_current_state ()

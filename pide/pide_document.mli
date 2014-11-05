@@ -37,9 +37,11 @@ val remove_versions: version_id list -> state -> state
  *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered
  *  TODO: Is this the right place to start shuffling the queues?
  *)
-val execute :
+val execute:
   Pide_protocol.task TQueue.t -> Pide_protocol.task Queue.t -> unit
 
 val change_state: (state -> state) -> unit
 
-val initialize : unit -> unit
+val initialize: unit -> unit
+
+val initialize_state: unit -> unit
