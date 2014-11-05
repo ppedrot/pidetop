@@ -72,7 +72,7 @@ let node ts = Element (":", [], ts)
 
 let vector = map_index (fun (i, x) -> (int_atom i, x))
 
-let tagged (tag, (xs, ts)) = Element (int_atom tag, vector xs, ts)
+let tagged (tag, (xs, ts)) : Xml_datatype.xml = Element (int_atom tag, vector xs, ts)
 
 
 (* representation of standard types *)
