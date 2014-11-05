@@ -1,7 +1,7 @@
 type t = int * int * string  (*start/end offset counting from 1, id*)
 
-let make_id i j id = (i, j, id)
-let make i j = make_id i j ""
+let make_id i j id = (i, j, (string_of_int id))
+let make i j = (i, j, "")
 
 let none = make 0 0
 

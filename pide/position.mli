@@ -1,8 +1,8 @@
 type t
-val make_id: int -> int -> string -> t
+val make_id: int -> int -> int -> t
 val make: int -> int -> t
 val none: t
-val id_only: string -> t
+val id_only: int -> t
 val properties_of: t -> Properties.t
 
 (* These need to move to Markup. *)

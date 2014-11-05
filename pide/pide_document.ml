@@ -165,19 +165,19 @@ let edit_nodes (Version nodes) (name, node_edit) =
 
   let add task_queue exec_id tip edit_id text =
     Queue.push (`Add (lazy (
-    let position = Position.id_only (print_exec_id exec_id) in
+    let position = Position.id_only (Stateid.to_int exec_id) in
     Coq_output.status position [Xml_datatype.Element ("running", [], [])];
     try
       ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
       let ast = Stm.print_ast exec_id in
-      Coq_output.report (Position.id_only (Stateid.to_string exec_id)) [ast];
+      Coq_output.report (Position.id_only (Stateid.to_int exec_id)) [ast];
       Some exec_id
     with e when Errors.noncritical e -> None))) task_queue;
     exec_id
 
   let query task_queue at route_id query_id text =
     Queue.push (`Query (lazy (
-      let position = Position.id_only (print_exec_id query_id) in
+      let position = Position.id_only (Stateid.to_int query_id) in
       Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
       try Stm.query ~at:at ~report_with:(query_id,route_id) text
       with e when Errors.noncritical e ->
@@ -275,43 +275,43 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let already_printed = ref Stateid.Set.empty
+let already_printed = ref Int.Set.empty
 
 let position_of_loc loc =
   if Loc.is_ghost loc then Position.id_only
   else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
 
-let goal_printer exec_id exec_id_str route = function
+let goal_printer id route = function
   | Feedback.StructuredGoals (loc, goals) ->
-      let pos = position_of_loc loc exec_id_str in
+      let pos = position_of_loc loc id in
       report pos [goals];
       true
 
   | Feedback.Goals (loc,goalstate) ->
-      (if Stateid.Set.mem exec_id !already_printed then ()
+      (if Int.Set.mem id !already_printed then ()
        else (
-         already_printed := Stateid.Set.add exec_id !already_printed;
-         let pos = position_of_loc loc exec_id_str in
+         already_printed := Int.Set.add id !already_printed;
+         let pos = position_of_loc loc id in
          let source = Properties.put ("source", "goal") Properties.empty in
          writeln pos ~props:source goalstate));
       true
   | _ -> false
 
-let error_printer exec_id exec_id_str route = function
+let error_printer id route = function
   | Feedback.ErrorMsg (loc, txt) ->
-    let pos = position_of_loc loc exec_id_str in
+    let pos = position_of_loc loc id in
     Coq_output.status pos [Xml_datatype.Element ("finished", [], [])];
     error_msg pos txt;
     true
   | _ -> false
 
-let rest_printer exec_id exec_id_str route = function
+let rest_printer id route = function
   | Feedback.Processed ->
-      let position = Position.id_only exec_id_str in
+      let position = Position.id_only id in
       Coq_output.status position [Xml_datatype.Element ("finished", [], [])];
       true
     | Feedback.Message { Feedback.message_content = s } ->
-        let position = Position.id_only exec_id_str in
+        let position = Position.id_only id in
         if route <> Feedback.default_route then result position route s
         else begin
           let source = Properties.put ("source", "query") Properties.empty in
@@ -321,7 +321,7 @@ let rest_printer exec_id exec_id_str route = function
     | _ -> false
 
 type entry_location =
-  | Local of string
+  | Local of int
   | ExtFile of string
 
 module S = struct type t = string * string * string let compare = compare end
@@ -332,7 +332,7 @@ let lookup m k cont =
   with Not_found -> false
 
 (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
-let load_globs (f: string) (id: string) =
+let load_globs (f: string) (id: int) =
   let bare_name = Filename.chop_extension f in
   let glob_name = bare_name ^ ".glob" in
   let v_name = bare_name ^ ".v" in
@@ -356,13 +356,13 @@ let load_globs (f: string) (id: string) =
       ("Warning: " ^ glob_name ^
        ": No such file or directory (links will not be available)")
 
-let glob_printer exec_id exec_id_str route = function
+let glob_printer id route = function
   | Feedback.FileLoaded(dirname, filename) ->
-      load_globs filename exec_id_str; true
+      load_globs filename id; true
   | Feedback.GlobDef (loc, name, secpath, ty) ->
       (* TODO: This works for proofs, but will break on other 'synonyms' *)
       let ty = if ty = "prf" then "thm" else  ty in
-      def_map := M.add (ty, name, secpath) (loc, Local exec_id_str) !def_map; true
+      def_map := M.add (ty, name, secpath) (loc, Local id) !def_map; true
   | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
       let _li, _lj = Loc.unloc loc in
       lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
@@ -370,10 +370,10 @@ let glob_printer exec_id exec_id_str route = function
         let (dest_i, dest_j) = Loc.unloc dest in
         let location =
           match dest_id with
-          | Local dest_id' -> "def_id", dest_id'
+          | Local dest_id' -> "def_id", (string_of_int dest_id')
           | ExtFile fname  -> "def_file", fname
           in
-        let report_body = location :: ["id", exec_id_str;
+        let report_body = location :: ["id", string_of_int id;
                                "offset", (string_of_int (i + 1));
                                "end_offset", (string_of_int (j + 1));
 
@@ -382,28 +382,27 @@ let glob_printer exec_id exec_id_str route = function
                                "name", name;
                                "kind", ty] in
 
-        let position = position_of_loc loc exec_id_str in
+        let position = position_of_loc loc id in
         Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
       )
   | _ -> false
 
-let dependency_printer exec_id exec_id_str route = function
+let dependency_printer id route = function
   | Feedback.FileDependency (from, depends_on) ->
-      (*TODO: Report to Scala, process there. *)
       true
   | _ -> false
 
 let lift f {Feedback.id; Feedback.content; Feedback.route} =
-  match id with
+  let i = match id with
   | Feedback.State exec_id ->
-      f exec_id (print_exec_id exec_id) route content
-  | _ -> false
+      Stateid.to_int exec_id
+  | Feedback.Edit i -> i
+  in
+  f i route content
 
 let (>>=) f1 f2 feedback =
   if f1 feedback then true
   else lift f2 feedback
-
-
 
 let init_printers () =
   Pp.set_feeder (fun f ->
