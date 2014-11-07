@@ -24,3 +24,13 @@ val removed_versions: Properties.t
 
 val status_running: Xml_datatype.xml list
 val status_finished: Xml_datatype.xml list
+
+
+type entry_location =
+  | Local of int
+  | ExtFile of string
+
+val entity: int -> (int * int) -> (* The refering entity + offsets *)
+            entry_location -> (int * int) -> (* The location of the entity, including offsets *)
+            string -> string ->  (* The name and kind of the entity. *)
+            Xml_datatype.xml list

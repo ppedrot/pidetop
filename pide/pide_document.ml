@@ -321,10 +321,6 @@ let rest_printer id route = function
         true
     | _ -> false
 
-type entry_location =
-  | Local of int
-  | ExtFile of string
-
 module S = struct type t = string * string * string let compare = compare end
 module M = CMap.Make(S)
 let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
@@ -369,22 +365,10 @@ let glob_printer id route = function
       lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
         let (i, j) = Loc.unloc loc in
         let (dest_i, dest_j) = Loc.unloc dest in
-        let location =
-          match dest_id with
-          | Local dest_id' -> "def_id", (string_of_int dest_id')
-          | ExtFile fname  -> "def_file", fname
-          in
-        let report_body = location :: ["id", string_of_int id;
-                               "offset", (string_of_int (i + 1));
-                               "end_offset", (string_of_int (j + 1));
-
-                               "def_offset", (string_of_int (dest_i + 1));
-                               "def_end_offset", (string_of_int (dest_j + 1));
-                               "name", name;
-                               "kind", ty] in
-
         let position = position_of_loc loc id in
-        Coq_output.report position [Xml_datatype.Element ("entity", report_body, [])]
+        Coq_output.report position (entity id ((i+1), (j+1))
+                                          dest_id ((dest_i+1), (dest_j+1))
+                                          name ty)
       )
   | _ -> false
 
