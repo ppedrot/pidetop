@@ -43,3 +43,7 @@ let assign_update = [(functionN, "assign_update")]
 let removed_versions = [(functionN, "removed_versions")]
 
 
+(* Status messages *)
+let childless_node n = [Xml_datatype.Element (n, [], [])] 
+let status_running = childless_node "running"
+let status_finished = childless_node "finished"

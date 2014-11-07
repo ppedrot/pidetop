@@ -21,3 +21,6 @@ val functionN: string
 val ready: Properties.t
 val assign_update: Properties.t
 val removed_versions: Properties.t
+
+val status_running: Xml_datatype.xml list
+val status_finished: Xml_datatype.xml list

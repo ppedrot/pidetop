@@ -1,5 +1,6 @@
 open Coq_messages
 open Coq_output
+open Coq_markup
 
 (* Pipelining operators. These are defined in SML, not in Ocaml. *)
 let (|>) x f = f x
@@ -166,7 +167,7 @@ let edit_nodes (Version nodes) (name, node_edit) =
   let add task_queue exec_id tip edit_id text =
     Queue.push (`Add (lazy (
     let position = Position.id_only (Stateid.to_int exec_id) in
-    Coq_output.status position [Xml_datatype.Element ("running", [], [])];
+    status position status_running;
     try
       ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
       let ast = Stm.print_ast exec_id in
@@ -178,7 +179,7 @@ let edit_nodes (Version nodes) (name, node_edit) =
   let query task_queue at route_id query_id text =
     Queue.push (`Query (lazy (
       let position = Position.id_only (Stateid.to_int query_id) in
-      Coq_output.status position [Xml_datatype.Element ("running", [], [])]; (* TODO: potential for refactoring with the add. *)
+      status position status_running;
       try Stm.query ~at:at ~report_with:(query_id,route_id) text
       with e when Errors.noncritical e ->
         let e = Errors.push e in
@@ -284,7 +285,7 @@ let position_of_loc loc =
 let goal_printer id route = function
   | Feedback.StructuredGoals (loc, goals) ->
       let pos = position_of_loc loc id in
-      report pos [goals];
+      Coq_output.report pos [goals];
       true
 
   | Feedback.Goals (loc,goalstate) ->
@@ -300,7 +301,7 @@ let goal_printer id route = function
 let error_printer id route = function
   | Feedback.ErrorMsg (loc, txt) ->
     let pos = position_of_loc loc id in
-    Coq_output.status pos [Xml_datatype.Element ("finished", [], [])];
+    status pos status_finished;
     error_msg pos txt;
     true
   | _ -> false
@@ -308,7 +309,7 @@ let error_printer id route = function
 let rest_printer id route = function
   | Feedback.Processed ->
       let position = Position.id_only id in
-      Coq_output.status position [Xml_datatype.Element ("finished", [], [])];
+      status position status_finished;
       true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only id in
