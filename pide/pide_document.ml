@@ -361,14 +361,9 @@ let glob_printer id route = function
       let ty = if ty = "prf" then "thm" else  ty in
       def_map := M.add (ty, name, secpath) (loc, Local id) !def_map; true
   | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
-      let _li, _lj = Loc.unloc loc in
       lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
-        let (i, j) = Loc.unloc loc in
-        let (dest_i, dest_j) = Loc.unloc dest in
         let position = position_of_loc loc id in
-        Coq_output.report position (entity id ((i+1), (j+1))
-                                          dest_id ((dest_i+1), (dest_j+1))
-                                          name ty)
+        Coq_output.report position (entity id loc dest_id dest name ty)
       )
   | _ -> false
 

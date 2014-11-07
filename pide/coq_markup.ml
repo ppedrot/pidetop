@@ -54,20 +54,20 @@ type entry_location =
   | Local of int
   | ExtFile of string
 
-let entity ref_id (ref_offset, ref_end_offset)
-           def_id (def_offset, def_end_offset)
-           name kind =
+let entity ref_id ref_loc def_id def_loc name kind =
+  let ref_offset, ref_end_offset = Loc.unloc ref_loc in
+  let def_offset, def_end_offset = Loc.unloc def_loc in
   let def_location = match def_id with
     | Local dest_id -> "def_id", (string_of_int dest_id)
     | ExtFile fname -> "def_file", fname
   in
   let attrs = 
     ["id", string_of_int ref_id;
-     "offset", string_of_int ref_offset;
-     "end_offset", string_of_int ref_end_offset;
+     "offset", string_of_int (ref_offset + 1);
+     "end_offset", string_of_int (ref_end_offset + 1);
      def_location;
-     "def_offset", string_of_int def_offset;
-     "def_end_offset", string_of_int def_end_offset;
+     "def_offset", string_of_int (def_offset + 1);
+     "def_end_offset", string_of_int (def_end_offset + 1);
      "name", name;
      "kind", kind]
   in
