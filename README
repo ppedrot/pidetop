@@ -1,7 +1,7 @@
 PIDEtop
 =======
 
-This repository provides a toplevel plugin to make Coq speak the PIDE protocol.
+This repository provides a toplevel plugin to make Coq speak the PIDE protocol. If you are looking for a release to go with PIDE, checkout the PIDEtop branch (the default branch of this repository).
 
 
 Building
