@@ -235,8 +235,8 @@ let edit_nodes (Version nodes) (name, node_edit) =
             else snd (CList.last common) in
           Queue.push (`EditAt tip) tasks;
 
-          let new_computation' = List.map 
-            (fun (id, _) -> id, Stateid.fresh ()) 
+          let new_computation' = List.map
+            (fun (id, _) -> id, Stateid.fresh ())
             new_computation in
     
           ignore(List.fold_left
@@ -303,7 +303,9 @@ let error_printer id route = function
     let pos = position_of_loc loc id in
     if route <> Feedback.default_route then begin
       result pos route status_finished;
-      result pos route (Pide_xml.Encode.string txt)
+      let message_body =
+        Xml_datatype.Element(errorN, [], Pide_xml.Encode.string txt) in
+      result pos route [message_body]
     end
     else begin
       status pos status_finished;
@@ -319,8 +321,12 @@ let rest_printer id route = function
       true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only id in
-        if route <> Feedback.default_route then
-          result position route (Pide_xml.Encode.string s)
+        if route <> Feedback.default_route then begin
+          result position route status_finished;
+          let message_body =
+            Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
+          result position route [message_body]
+        end
         else begin
           let source = Properties.put ("source", "query") Properties.empty in
           writeln position ~props:source s
