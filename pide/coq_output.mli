@@ -6,7 +6,7 @@ type standard_message_t = Position.t -> ?props: Properties.t -> string -> unit
 (* Write a line *)
 val writeln : standard_message_t
 
-val result : Position.t -> int -> string -> unit
+val result : Position.t -> int -> Xml_datatype.xml list -> unit
 
 (* Report an error message. 
  *)

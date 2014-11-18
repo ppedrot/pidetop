@@ -301,8 +301,14 @@ let goal_printer id route = function
 let error_printer id route = function
   | Feedback.ErrorMsg (loc, txt) ->
     let pos = position_of_loc loc id in
-    status pos status_finished;
-    error_msg pos txt;
+    if route <> Feedback.default_route then begin
+      result pos route status_finished;
+      result pos route (Pide_xml.Encode.string txt)
+    end
+    else begin
+      status pos status_finished;
+      error_msg pos txt
+    end;
     true
   | _ -> false
 
@@ -313,7 +319,8 @@ let rest_printer id route = function
       true
     | Feedback.Message { Feedback.message_content = s } ->
         let position = Position.id_only id in
-        if route <> Feedback.default_route then result position route s
+        if route <> Feedback.default_route then
+          result position route (Pide_xml.Encode.string s)
         else begin
           let source = Properties.put ("source", "query") Properties.empty in
           writeln position ~props:source s

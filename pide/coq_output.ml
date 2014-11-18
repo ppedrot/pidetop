@@ -34,15 +34,15 @@ let init_message message =
 
 let writeln = standard_message writelnN true 
 
-let result pos instance message =
+let result pos instance message_body =
   let properties = properties_of pos in
   let properties = Properties.put (Markup.serialN, string_of_int (serial ()))
                                   properties in
   let properties = Properties.put (Markup.instanceN, string_of_int instance)
                                   properties in
-  let body = Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string message)
-  in
-  send_message resultN properties [body]
+(*  let body = Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string message)
+  in *)
+  send_message resultN properties message_body
 
 let error_msg pos = standard_message errorN true pos 
 let warning_msg pos = standard_message warningN true pos
