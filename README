@@ -25,9 +25,9 @@ As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to 
 
 ### Coq
 - Branch: trunk at https://github.com/coq/coq
-- Revision: `cfb5201e2ebc2516e3de7c578355db8bd4f08d35`
+- Revision: [7008576175028838d5d7ba899dbc44d04e2d23c1](https://github.com/coq/coq/commit/7008576175028838d5d7ba899dbc44d04e2d23c1)
 - Notes:
-    * This revision on Coq trunk introduces an API change: query routing information is kept around in Coq. 
+    * This revision on Coq trunk introduces an API change: feedback is handled by plugin-installed hooks. 
     * For previous versions of Coq trunk, use a slightly older version of PIDEtop.
     
 
