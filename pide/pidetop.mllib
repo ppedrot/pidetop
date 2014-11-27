@@ -13,4 +13,5 @@ Coq_input
 Pide_protocol
 Pide_slave
 Pide_goalprint
+Pide_gallina
 Pide_top

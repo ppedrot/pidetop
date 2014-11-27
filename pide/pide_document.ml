@@ -180,7 +180,7 @@ let edit_nodes (Version nodes) (name, node_edit) =
     Queue.push (`Query (lazy (
       let position = Position.id_only (Stateid.to_int query_id) in
       status position status_running;
-      try Stm.query ~at:at ~report_with:(query_id,route_id) text
+      try Stm.async_query ~at:at ~report_with:(query_id,route_id) text
       with e when Errors.noncritical e ->
         let e = Errors.push e in
         let msg = Pp.string_of_ppcmds (Errors.print e) in

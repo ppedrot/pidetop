@@ -14,6 +14,7 @@ pide/pide_document.ml
 pide/pide_document.mli
 pide/pide_flags.ml
 pide/pide_flags.mli
+pide/pide_gallina.ml4
 pide/pide_goalprint.ml
 pide/pideproofworker_top.ml
 pide/pide_protocol.ml
