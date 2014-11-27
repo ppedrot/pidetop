@@ -13,4 +13,7 @@ let () =
     (fun id ~in_cache ->
        Pp.feedback ~state_id:id Feedback.Processed;
        Option.iter
-         (Pide_goalprint.feedback_structured_goals id) (Stm.state_of_id id))
+         (Pide_goalprint.feedback_structured_goals id) (Stm.state_of_id id));
+  Hook.set Stm.unreachable_state_hook
+    (fun id ->
+      Pp.feedback ~state_id:id Feedback.Processed)

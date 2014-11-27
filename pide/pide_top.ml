@@ -31,6 +31,9 @@ let () = Coqtop.toploop_init := (fun args ->
     (fun id ~in_cache ->
        Pp.feedback ~state_id:id Feedback.Processed;
        Option.iter (print_goals_of_state id) (Stm.state_of_id id));
+  Hook.set Stm.unreachable_state_hook
+    (fun id ->
+      Pp.feedback ~state_id:id Feedback.Processed);
   Hook.set Stm.forward_feedback_hook forward_feedback;
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
