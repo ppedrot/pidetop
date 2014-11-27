@@ -14,11 +14,12 @@ pide/pide_document.ml
 pide/pide_document.mli
 pide/pide_flags.ml
 pide/pide_flags.mli
+pide/pide_goalprint.ml
+pide/pideproofworker_top.ml
 pide/pide_protocol.ml
 pide/pide_protocol.mli
 pide/pide_slave.ml
 pide/pide_top.ml
-pide/pidetop.mllib
 pide/pide_xml.ml
 pide/position.ml
 pide/position.mli
@@ -26,5 +27,8 @@ pide/properties.ml
 pide/properties.mli
 pide/yxml.ml
 pide/yxml.mli
+
+pide/pidetop.mllib
+pide/pideproofworkertop.mllib
 
 -I pide/

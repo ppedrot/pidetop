@@ -283,7 +283,7 @@ let position_of_loc loc =
   else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
 
 let goal_printer id route = function
-  | Feedback.StructuredGoals (loc, goals) ->
+  | Feedback.Custom(loc,"structured_goals",goals) ->
       let pos = position_of_loc loc id in
       Coq_output.report pos [goals];
       true
@@ -385,13 +385,13 @@ let dependency_printer id route = function
       true
   | _ -> false
 
-let lift f {Feedback.id; Feedback.content; Feedback.route} =
+let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   let i = match id with
   | Feedback.State exec_id ->
       Stateid.to_int exec_id
   | Feedback.Edit i -> i
   in
-  f i route content
+  f i route contents
 
 let (>>=) f1 f2 feedback =
   if f1 feedback then true
