@@ -334,7 +334,52 @@ let rest_printer id route = function
         true
     | _ -> false
 
-module S = struct type t = string * string * string let compare = compare end
+
+(* TODO: These definitions are yanked from the Coqdoc implementation. 
+ * It is probably a good idea to be more principled, and factor the functions
+ * into some shared library with Coq...
+ *)
+type entry_type =
+  | Library
+  | Module
+  | Definition
+  | Inductive
+  | Constructor
+  | Lemma
+  | Record
+  | Projection
+  | Instance
+  | Class
+  | Method
+  | Variable
+  | Axiom
+  | TacticDefinition
+  | Abbreviation
+  | Notation
+  | Section
+
+let type_of_string = function
+  | "def" | "coe" | "subclass" | "canonstruc" | "fix" | "cofix"
+  | "ex" | "scheme" -> Definition
+  | "prf" | "thm" -> Lemma
+  | "ind" | "variant" | "coind" -> Inductive
+  | "constr" -> Constructor
+  | "indrec" | "rec" | "corec" -> Record
+  | "proj" -> Projection
+  | "class" -> Class
+  | "meth" -> Method
+  | "inst" -> Instance
+  | "var" -> Variable
+  | "defax" | "prfax" | "ax" -> Axiom
+  | "syndef" -> Abbreviation
+  | "not" -> Notation
+  | "lib" -> Library
+  | "mod" | "modtype" -> Module
+  | "tac" -> TacticDefinition
+  | "sec" -> Section
+  | s -> invalid_arg ("type_of_string:" ^ s)
+
+module S = struct type t = entry_type * string * string let compare = compare end
 module M = CMap.Make(S)
 let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
 let lookup m k cont =
@@ -355,8 +400,8 @@ let load_globs (f: string) (id: int) =
         (fun ty loc1 loc2 secpath name ->
            let loc = Loc.make_loc (loc1, loc2) in
            (* TODO: Store interpreted type, not raw ty string *)
-           let ty = if ty = "prf" then "thm" else ty in
-           def_map := M.add (ty, name,  secpath) (loc, ExtFile v_name) !def_map)
+           let typ = type_of_string ty in
+           def_map := M.add (typ, name,  secpath) (loc, ExtFile v_name) !def_map)
       with Scanf.Scan_failure _ | End_of_file -> ()
     done
     with End_of_file ->
@@ -370,11 +415,11 @@ let glob_printer id route = function
   | Feedback.FileLoaded(dirname, filename) ->
       load_globs filename id; true
   | Feedback.GlobDef (loc, name, secpath, ty) ->
-      (* TODO: This works for proofs, but will break on other 'synonyms' *)
-      let ty = if ty = "prf" then "thm" else  ty in
-      def_map := M.add (ty, name, secpath) (loc, Local id) !def_map; true
+      let typ = type_of_string ty in
+      def_map := M.add (typ, name, secpath) (loc, Local id) !def_map; true
   | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
-      lookup def_map (ty, name, mp) (fun (dest, dest_id) ->
+      let typ = type_of_string ty in
+      lookup def_map (typ, name, mp) (fun (dest, dest_id) ->
         let position = position_of_loc loc id in
         Coq_output.report position (entity id loc dest_id dest name ty)
       )
