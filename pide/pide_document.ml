@@ -426,6 +426,7 @@ let dependency_printer id route = function
       true
   | _ -> false
 
+
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   let i = match id with
   | Feedback.State exec_id ->
@@ -438,10 +439,18 @@ let (>>=) f1 f2 feedback =
   if f1 feedback then true
   else lift f2 feedback
 
+type printer = int -> Feedback.route_id -> Feedback.feedback_content -> bool
+type lifted_printer = Feedback.feedback -> bool
+let dummy_printer : lifted_printer =  (fun f -> false)
+
+let installed_printers : lifted_printer ref = ref dummy_printer
+
+let install_printer (p : printer) =
+  installed_printers := !installed_printers >>= p;
+  Pp.set_feeder (fun f -> ignore (!installed_printers f))
+
 let init_printers () =
-  let printers = [goal_printer; glob_printer; dependency_printer; rest_printer] |>
-    List.fold_left (>>=) (lift error_printer) in
-  Pp.set_feeder (fun f -> ignore(printers f));
+  List.iter install_printer [error_printer; goal_printer; glob_printer; dependency_printer; rest_printer];
   Pp.log_via_feedback ()
 
 let initialize () =

@@ -33,6 +33,16 @@ val update: version_id -> version_id -> edit list -> state ->
 
 val remove_versions: version_id list -> state -> state
 
+(** Printers *)
+(* For now, printers are functions that take (unpacked) feedback and process it.
+ * They return true iff they could handle the feedback.
+ *)
+type printer = int -> Feedback.route_id -> Feedback.feedback_content -> bool
+(* Install a printer to the current printer stack. The printer will be executed
+ * last.
+ *)
+val install_printer: printer -> unit
+
 (* Executes the given 'transaction': 
  *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered
  *  TODO: Is this the right place to start shuffling the queues?
