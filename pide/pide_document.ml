@@ -2,11 +2,6 @@ open Coq_messages
 open Coq_output
 open Coq_markup
 
-(* Pipelining operators. These are defined in SML, not in Ocaml. *)
-let (|>) x f = f x
-let (@>) f g x = g (f x)
-
-
 type id = int
 type version_id = id
 type command_id = id
