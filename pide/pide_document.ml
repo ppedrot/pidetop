@@ -460,8 +460,7 @@ let dummy_printer : lifted_printer =  (fun f -> false)
 
 let installed_printers : lifted_printer ref = ref dummy_printer
 
-let install_printer (p : (module Printer)) =
-  let module P = (val p: Printer) in
+let install_printer (module P : Printer) =
   installed_printers := !installed_printers >>= P.print_func;
   Pp.set_feeder (fun f -> ignore (!installed_printers f))
 
