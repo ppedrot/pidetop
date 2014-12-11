@@ -141,131 +141,130 @@ let edit_nodes (Version nodes) (name, node_edit) =
       | Perspective (commands, overlay) ->
           update_node name (fun n ->
               set_perspective n commands overlay) nodes
+    )
 
-      )
+let put_node (Version nodes) (name, node) =
+  Version ((name, node) :: List.remove_assoc name nodes)
 
-  let put_node (Version nodes) (name, node) =
-    Version ((name, node) :: List.remove_assoc name nodes)
+let get_node nodes name =
+  try List.assoc name nodes
+  with Not_found -> empty_node
 
-  let get_node nodes name = 
-    try List.assoc name nodes
-    with Not_found -> empty_node
-
-  let rec chop_common (entries0 : entries) (entries1: entries) =
-    match (entries0, entries1) with
-    | (x :: rest0, y :: rest1) when x = y -> 
-        let (common', rest') = chop_common rest0 rest1 in
-        (x :: common', rest')
-    | _ -> ([], (entries0, entries1))
+let rec chop_common (entries0 : entries) (entries1: entries) =
+  match (entries0, entries1) with
+  | (x :: rest0, y :: rest1) when x = y ->
+      let (common', rest') = chop_common rest0 rest1 in
+      (x :: common', rest')
+  | _ -> ([], (entries0, entries1))
 
 
-  let add task_queue exec_id tip edit_id text =
-    Queue.push (`Add (lazy (
-    let position = Position.id_only (Stateid.to_int exec_id) in
+let add task_queue exec_id tip edit_id text =
+  Queue.push (`Add (lazy (
+  let position = Position.id_only (Stateid.to_int exec_id) in
+  status position status_running;
+  try
+    ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
+    let ast = Stm.print_ast exec_id in
+    Coq_output.report (Position.id_only (Stateid.to_int exec_id)) [ast];
+    Some exec_id
+  with e when Errors.noncritical e -> None))) task_queue;
+  exec_id
+
+let query task_queue at route_id query_id text =
+  Queue.push (`Query (lazy (
+    let position = Position.id_only (Stateid.to_int query_id) in
     status position status_running;
-    try
-      ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
-      let ast = Stm.print_ast exec_id in
-      Coq_output.report (Position.id_only (Stateid.to_int exec_id)) [ast];
-      Some exec_id
-    with e when Errors.noncritical e -> None))) task_queue;
-    exec_id
-
-  let query task_queue at route_id query_id text =
-    Queue.push (`Query (lazy (
-      let position = Position.id_only (Stateid.to_int query_id) in
-      status position status_running;
-      try Stm.query ~at:at ~report_with:(query_id,route_id) text
-      with e when Errors.noncritical e ->
-        let e = Errors.push e in
-        let msg = Pp.string_of_ppcmds (Errors.print e) in
-        prerr_endline msg))) task_queue
+    try Stm.query ~at:at ~report_with:(query_id,route_id) text
+    with e when Errors.noncritical e ->
+      let e = Errors.push e in
+      let msg = Pp.string_of_ppcmds (Errors.print e) in
+      prerr_endline msg))) task_queue
 
 
-  let set_overlay stmq cid at ov st: exec_id list =
-    List.fold_right (fun (oid, (command, args)) acc ->
-      if command = "coq_query" then
-        match args with 
-        | instance :: query_text :: args ->
-          if oid = cid then
-            let eid = Stateid.fresh () in
-            let iid = int_of_string instance in
-            query stmq at iid eid query_text;
-            (eid :: acc)
-          else acc
-        | _ -> acc
+let set_overlay stmq cid at ov st: exec_id list =
+  List.fold_right (fun (oid, (command, args)) acc ->
+    if command = "coq_query" then
+      match args with
+      | instance :: query_text :: args ->
+        if oid = cid then
+          let eid = Stateid.fresh () in
+          let iid = int_of_string instance in
+          query stmq at iid eid query_text;
+          (eid :: acc)
+        else acc
+      | _ -> acc
+    else acc)
+  ov []
+
+let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
+  List.fold_right
+    (fun (c: command_id) (acc: exec_id list) ->
+      if (List.mem_assoc c execs) then
+        match List.assoc c execs with
+        | [] -> acc
+        | es -> es @ acc
       else acc)
-    ov []
+    p
+    []
 
-  let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
-    List.fold_right
-      (fun (c: command_id) (acc: exec_id list) ->
-        if (List.mem_assoc c execs) then
-          match List.assoc c execs with
-          | [] -> acc
-          | es -> es @ acc
-        else acc)
-      p
-      []
-
-  let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
-    (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
-    let Version old_nodes as old_version = the_version st v_old in
-    let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
-    let tasks = Queue.create () in
-    let updated =
-      new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
-        if List.mem_assoc name edits then
-          let Node (old_entries, _, _) = get_node old_nodes name in
-          let (common, (outdated_computation, new_computation)) = 
-            chop_common old_entries entries in
-          let common_execs = List.fold_right
-            (fun (id, exec_id) acc ->
-              let id_overlay = set_overlay tasks id exec_id overlay st in
-              if id_overlay = [] then acc
-              else (id, exec_id :: id_overlay) :: acc
-              ) common [] in
-          let tip =
-            if common = [] then !initial_state
-            else snd (CList.last common) in
-          Queue.push (`EditAt tip) tasks;
-
-          let new_computation' = List.map
-            (fun (id, _) -> id, Stateid.fresh ())
-            new_computation in
-    
-          ignore(List.fold_left
-            (fun curr_tip (cid, exec_id) -> 
-              let (is_ignored, cmd_text) = the_command st cid in
-              if not is_ignored then add tasks exec_id curr_tip cid cmd_text
-              else curr_tip
-            )
-          tip new_computation');
-        let overlay_execs =
-          List.fold_right (fun (id, exec_id) acc ->
+let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
+  (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
+  let Version old_nodes as old_version = the_version st v_old in
+  let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
+  let tasks = Queue.create () in
+  let updated =
+    new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
+      if List.mem_assoc name edits then
+        let Node (old_entries, _, _) = get_node old_nodes name in
+        let (common, (outdated_computation, new_computation)) =
+          chop_common old_entries entries in
+        let common_execs = List.fold_right
+          (fun (id, exec_id) acc ->
             let id_overlay = set_overlay tasks id exec_id overlay st in
-            (id, exec_id :: id_overlay):: acc) 
-          new_computation' [] in
-        let command_execs =
-          List.map (fun (id, _) -> (id, [])) outdated_computation @
-          common_execs @ overlay_execs in
-        Queue.push `Observe tasks;
-        let updated_node =
-          match command_execs with
-          | [] -> []
-          | _  -> [(name, 
-                    Node ((common @ new_computation'), perspective, overlay))]
-        in
-        Stm.set_perspective (to_exec_list perspective command_execs);
-        (command_execs, updated_node)
-      else
-        [], [])
-    in
-    let command_execs = List.flatten (List.map fst updated) in
-    let updated_nodes = List.flatten (List.map snd updated) in
-    let state' = define_version v_new
-      (List.fold_left put_node new_version updated_nodes) st in
-    (command_execs, tasks, state')
+            if id_overlay = [] then acc
+            else (id, exec_id :: id_overlay) :: acc
+            ) common [] in
+        let tip =
+          if common = [] then !initial_state
+          else snd (CList.last common) in
+        Queue.push (`EditAt tip) tasks;
+
+        let new_computation' = List.map
+          (fun (id, _) -> id, Stateid.fresh ())
+          new_computation in
+
+        ignore(List.fold_left
+          (fun curr_tip (cid, exec_id) ->
+            let (is_ignored, cmd_text) = the_command st cid in
+            if not is_ignored then add tasks exec_id curr_tip cid cmd_text
+            else curr_tip
+          )
+        tip new_computation');
+      let overlay_execs =
+        List.fold_right (fun (id, exec_id) acc ->
+          let id_overlay = set_overlay tasks id exec_id overlay st in
+          (id, exec_id :: id_overlay):: acc)
+        new_computation' [] in
+      let command_execs =
+        List.map (fun (id, _) -> (id, [])) outdated_computation @
+        common_execs @ overlay_execs in
+      Queue.push `Observe tasks;
+      let updated_node =
+        match command_execs with
+        | [] -> []
+        | _  -> [(name,
+                  Node ((common @ new_computation'), perspective, overlay))]
+      in
+      Stm.set_perspective (to_exec_list perspective command_execs);
+      (command_execs, updated_node)
+    else
+      [], [])
+  in
+  let command_execs = List.flatten (List.map fst updated) in
+  let updated_nodes = List.flatten (List.map snd updated) in
+  let state' = define_version v_new
+    (List.fold_left put_node new_version updated_nodes) st in
+  (command_execs, tasks, state')
 
 let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
