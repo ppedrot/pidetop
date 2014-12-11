@@ -272,20 +272,21 @@ let execute stmq task_queue =
 
 module type Printer =
   sig
-    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> bool
+    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> unit
   end
 
 let position_of_loc loc =
   if Loc.is_ghost loc then Position.id_only
   else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
 
+exception Unhandled
+
 let goal_printer: (module Printer) = (module struct
   let already_printed = ref Int.Set.empty
   let print_func id route = function
   | Feedback.Custom(loc,"structured_goals",goals) ->
       let pos = position_of_loc loc id in
-      Coq_output.report pos [goals];
-      true
+      Coq_output.report pos [goals]
 
   | Feedback.Goals (loc,goalstate) ->
       (if Int.Set.mem id !already_printed then ()
@@ -293,9 +294,8 @@ let goal_printer: (module Printer) = (module struct
          already_printed := Int.Set.add id !already_printed;
          let pos = position_of_loc loc id in
          let source = Properties.put ("source", "goal") Properties.empty in
-         writeln pos ~props:source goalstate));
-      true
-  | _ -> false
+         writeln pos ~props:source goalstate))
+  | _ -> raise Unhandled
 end)
 
 let error_printer: (module Printer) = (module struct
@@ -311,9 +311,8 @@ let error_printer: (module Printer) = (module struct
     else begin
       status pos status_finished;
       error_msg pos txt
-    end;
-    true
-  | _ -> false
+    end
+  | _ -> raise Unhandled
 end)
 
 
@@ -370,9 +369,7 @@ let glob_printer : (module Printer) = (module struct
 
   let lookup m k cont =
     (try cont (M.find k !m)
-    with Not_found -> ());
-    true
-
+    with Not_found -> ())
 
   (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
   let load_globs (f: string) (id: int) =
@@ -381,17 +378,17 @@ let glob_printer : (module Printer) = (module struct
     let v_name = bare_name ^ ".v" in
     try
       let c = open_in glob_name in
-    try
-      while true do
-        let s = input_line c in
-        try Scanf.sscanf s "%s %d:%d %s %s"
-          (fun ty loc1 loc2 secpath name ->
-             let loc = Loc.make_loc (loc1, loc2) in
-             (* TODO: Store interpreted type, not raw ty string *)
-             let typ = type_of_string ty in
-             def_map := M.add (typ, name,  secpath) (loc, ExtFile v_name) !def_map)
-        with Scanf.Scan_failure _ | End_of_file -> ()
-      done
+      try
+        while true do
+          let s = input_line c in
+          try Scanf.sscanf s "%s %d:%d %s %s"
+            (fun ty loc1 loc2 secpath name ->
+               let loc = Loc.make_loc (loc1, loc2) in
+               (* TODO: Store interpreted type, not raw ty string *)
+               let typ = type_of_string ty in
+               def_map := M.add (typ, name,  secpath) (loc, ExtFile v_name) !def_map)
+          with Scanf.Scan_failure _ | End_of_file -> ()
+        done
       with End_of_file ->
         close_in c
     with Sys_error s ->
@@ -401,46 +398,43 @@ let glob_printer : (module Printer) = (module struct
 
   let print_func id route = function
   | Feedback.FileLoaded(dirname, filename) ->
-      load_globs filename id; true
+      load_globs filename id
   | Feedback.GlobDef (loc, name, secpath, ty) ->
       let typ = type_of_string ty in
-      def_map := M.add (typ, name, secpath) (loc, Local id) !def_map; true
+      def_map := M.add (typ, name, secpath) (loc, Local id) !def_map
   | Feedback.GlobRef (loc, _fp, mp, name, ty) ->
       let typ = type_of_string ty in
       lookup def_map (typ, name, mp) (fun (dest, dest_id) ->
         let position = position_of_loc loc id in
         Coq_output.report position (entity id loc dest_id dest name ty)
       )
-  | _ -> false
+  | _ -> raise Unhandled
 end)
 
 let dependency_printer : (module Printer) = (module struct
   let print_func id route = function
-  | Feedback.FileDependency (from, depends_on) ->
-      true
-  | _ -> false
+  | Feedback.FileDependency (from, depends_on) -> (* TODO! *) ()
+  | _ -> raise Unhandled
 end)
 
 let rest_printer : (module Printer) = (module struct
   let print_func id route = function
   | Feedback.Processed ->
       let position = Position.id_only id in
-      status position status_finished;
-      true
-    | Feedback.Message { Feedback.message_content = s } ->
-        let position = Position.id_only id in
-        if route <> Feedback.default_route then begin
-          result position route status_finished;
-          let message_body =
-            Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
-          result position route [message_body]
-        end
-        else begin
-          let source = Properties.put ("source", "query") Properties.empty in
-          writeln position ~props:source s
-        end;
-        true
-    | _ -> false
+      status position status_finished
+  | Feedback.Message { Feedback.message_content = s } ->
+      let position = Position.id_only id in
+      if route <> Feedback.default_route then begin
+        result position route status_finished;
+        let message_body =
+          Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
+        result position route [message_body]
+      end
+      else begin
+        let source = Properties.put ("source", "query") Properties.empty in
+        writeln position ~props:source s
+      end
+  | _ -> raise Unhandled
 end)
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
@@ -457,7 +451,10 @@ let install_printer (p:  (module Printer)) =
   installed_printers := p :: !installed_printers
 
 let run_printers f = List.iter (fun (module P : Printer) ->
-  ignore (lift (P.print_func) f)) !installed_printers
+    try lift (P.print_func) f
+    with
+      Unhandled -> ())
+  !installed_printers
 
 let init_printers () =
   List.iter install_printer [error_printer; goal_printer; glob_printer; dependency_printer; rest_printer];

@@ -40,7 +40,7 @@ val remove_versions: version_id list -> state -> state
  *)
 module type Printer =
   sig
-    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> bool
+    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> unit
   end
 (* Install a printer to the current printer stack. The printer will be executed
  * last.
