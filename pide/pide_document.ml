@@ -270,13 +270,18 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let already_printed = ref Int.Set.empty
+module type Printer =
+  sig
+    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> bool
+  end
 
 let position_of_loc loc =
   if Loc.is_ghost loc then Position.id_only
   else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
 
-let goal_printer id route = function
+let goal_printer: (module Printer) = (module struct
+  let already_printed = ref Int.Set.empty
+  let print_func id route = function
   | Feedback.Custom(loc,"structured_goals",goals) ->
       let pos = position_of_loc loc id in
       Coq_output.report pos [goals];
@@ -291,8 +296,10 @@ let goal_printer id route = function
          writeln pos ~props:source goalstate));
       true
   | _ -> false
+end)
 
-let error_printer id route = function
+let error_printer: (module Printer) = (module struct
+  let print_func id route = function
   | Feedback.ErrorMsg (loc, txt) ->
     let pos = position_of_loc loc id in
     if route <> Feedback.default_route then begin
@@ -307,33 +314,16 @@ let error_printer id route = function
     end;
     true
   | _ -> false
-
-let rest_printer id route = function
-  | Feedback.Processed ->
-      let position = Position.id_only id in
-      status position status_finished;
-      true
-    | Feedback.Message { Feedback.message_content = s } ->
-        let position = Position.id_only id in
-        if route <> Feedback.default_route then begin
-          result position route status_finished;
-          let message_body =
-            Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
-          result position route [message_body]
-        end
-        else begin
-          let source = Properties.put ("source", "query") Properties.empty in
-          writeln position ~props:source s
-        end;
-        true
-    | _ -> false
+end)
 
 
-(* TODO: These definitions are yanked from the Coqdoc implementation. 
- * It is probably a good idea to be more principled, and factor the functions
- * into some shared library with Coq...
- *)
-type entry_type =
+
+let glob_printer : (module Printer) = (module struct
+  (* TODO: These definitions are yanked from the Coqdoc implementation.
+   * It is probably a good idea to be more principled, and factor the functions
+   * into some shared library with Coq...
+   *)
+  type entry_type =
   | Library
   | Module
   | Definition
@@ -352,62 +342,64 @@ type entry_type =
   | Notation
   | Section
 
-let type_of_string = function
-  | "def" | "coe" | "subclass" | "canonstruc" | "fix" | "cofix"
-  | "ex" | "scheme" -> Definition
-  | "prf" | "thm" -> Lemma
-  | "ind" | "variant" | "coind" -> Inductive
-  | "constr" -> Constructor
-  | "indrec" | "rec" | "corec" -> Record
-  | "proj" -> Projection
-  | "class" -> Class
-  | "meth" -> Method
-  | "inst" -> Instance
-  | "var" -> Variable
-  | "defax" | "prfax" | "ax" -> Axiom
-  | "syndef" -> Abbreviation
-  | "not" -> Notation
-  | "lib" -> Library
-  | "mod" | "modtype" -> Module
-  | "tac" -> TacticDefinition
-  | "sec" -> Section
-  | s -> invalid_arg ("type_of_string:" ^ s)
+  let type_of_string = function
+    | "def" | "coe" | "subclass" | "canonstruc" | "fix" | "cofix"
+    | "ex" | "scheme" -> Definition
+    | "prf" | "thm" -> Lemma
+    | "ind" | "variant" | "coind" -> Inductive
+    | "constr" -> Constructor
+    | "indrec" | "rec" | "corec" -> Record
+    | "proj" -> Projection
+    | "class" -> Class
+    | "meth" -> Method
+    | "inst" -> Instance
+    | "var" -> Variable
+    | "defax" | "prfax" | "ax" -> Axiom
+    | "syndef" -> Abbreviation
+    | "not" -> Notation
+    | "lib" -> Library
+    | "mod" | "modtype" -> Module
+    | "tac" -> TacticDefinition
+    | "sec" -> Section
+    | s -> invalid_arg ("type_of_string:" ^ s)
 
-module S = struct type t = entry_type * string * string let compare = compare end
-module M = CMap.Make(S)
-let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
-let lookup m k cont =
-  (try cont (M.find k !m)
-  with Not_found -> ());
-  true
+  module S = struct type t = entry_type * string * string let compare = compare end
+  module M = CMap.Make(S)
+
+  let def_map : (Loc.t * entry_location) M.t ref = ref (M.empty)
+
+  let lookup m k cont =
+    (try cont (M.find k !m)
+    with Not_found -> ());
+    true
 
 
-(* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
-let load_globs (f: string) (id: int) =
-  let bare_name = Filename.chop_extension f in
-  let glob_name = bare_name ^ ".glob" in
-  let v_name = bare_name ^ ".v" in
-  try
-  let c = open_in glob_name in
+  (* TODO: Basically the same as in tools/coqdoc/index.ml; except no refs. *)
+  let load_globs (f: string) (id: int) =
+    let bare_name = Filename.chop_extension f in
+    let glob_name = bare_name ^ ".glob" in
+    let v_name = bare_name ^ ".v" in
     try
-    while true do
-      let s = input_line c in
-      try Scanf.sscanf s "%s %d:%d %s %s"
-        (fun ty loc1 loc2 secpath name ->
-           let loc = Loc.make_loc (loc1, loc2) in
-           (* TODO: Store interpreted type, not raw ty string *)
-           let typ = type_of_string ty in
-           def_map := M.add (typ, name,  secpath) (loc, ExtFile v_name) !def_map)
-      with Scanf.Scan_failure _ | End_of_file -> ()
-    done
-    with End_of_file ->
-      close_in c
-  with Sys_error s ->
-    warning_msg (Position.id_only id)
-      ("Warning: " ^ glob_name ^
-       ": No such file or directory (links will not be available)")
+      let c = open_in glob_name in
+    try
+      while true do
+        let s = input_line c in
+        try Scanf.sscanf s "%s %d:%d %s %s"
+          (fun ty loc1 loc2 secpath name ->
+             let loc = Loc.make_loc (loc1, loc2) in
+             (* TODO: Store interpreted type, not raw ty string *)
+             let typ = type_of_string ty in
+             def_map := M.add (typ, name,  secpath) (loc, ExtFile v_name) !def_map)
+        with Scanf.Scan_failure _ | End_of_file -> ()
+      done
+      with End_of_file ->
+        close_in c
+    with Sys_error s ->
+      warning_msg (Position.id_only id)
+        ("Warning: " ^ glob_name ^
+         ": No such file or directory (links will not be available)")
 
-let glob_printer id route = function
+  let print_func id route = function
   | Feedback.FileLoaded(dirname, filename) ->
       load_globs filename id; true
   | Feedback.GlobDef (loc, name, secpath, ty) ->
@@ -420,12 +412,36 @@ let glob_printer id route = function
         Coq_output.report position (entity id loc dest_id dest name ty)
       )
   | _ -> false
+end)
 
-let dependency_printer id route = function
+let dependency_printer : (module Printer) = (module struct
+  let print_func id route = function
   | Feedback.FileDependency (from, depends_on) ->
       true
   | _ -> false
+end)
 
+let rest_printer : (module Printer) = (module struct
+  let print_func id route = function
+  | Feedback.Processed ->
+      let position = Position.id_only id in
+      status position status_finished;
+      true
+    | Feedback.Message { Feedback.message_content = s } ->
+        let position = Position.id_only id in
+        if route <> Feedback.default_route then begin
+          result position route status_finished;
+          let message_body =
+            Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
+          result position route [message_body]
+        end
+        else begin
+          let source = Properties.put ("source", "query") Properties.empty in
+          writeln position ~props:source s
+        end;
+        true
+    | _ -> false
+end)
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   let i = match id with
@@ -439,14 +455,14 @@ let (>>=) f1 f2 feedback =
   if f1 feedback then true
   else lift f2 feedback
 
-type printer = int -> Feedback.route_id -> Feedback.feedback_content -> bool
 type lifted_printer = Feedback.feedback -> bool
 let dummy_printer : lifted_printer =  (fun f -> false)
 
 let installed_printers : lifted_printer ref = ref dummy_printer
 
-let install_printer (p : printer) =
-  installed_printers := !installed_printers >>= p;
+let install_printer (p : (module Printer)) =
+  let module P = (val p: Printer) in
+  installed_printers := !installed_printers >>= P.print_func;
   Pp.set_feeder (fun f -> ignore (!installed_printers f))
 
 let init_printers () =
