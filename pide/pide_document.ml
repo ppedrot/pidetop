@@ -439,9 +439,9 @@ let (>>=) f1 f2 feedback =
   else lift f2 feedback
 
 let init_printers () =
-  Pp.set_feeder (fun f ->
-    ignore(((lift error_printer) >>= goal_printer >>=
-            glob_printer >>= dependency_printer >>= rest_printer) f));
+  let printers = [goal_printer; glob_printer; dependency_printer; rest_printer] |>
+    List.fold_left (>>=) (lift error_printer) in
+  Pp.set_feeder (fun f -> ignore(printers f));
   Pp.log_via_feedback ()
 
 let initialize () =
