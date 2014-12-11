@@ -451,21 +451,17 @@ let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   in
   f i route contents
 
-let (>>=) f1 f2 feedback =
-  if f1 feedback then true
-  else lift f2 feedback
+let installed_printers : (module Printer) list ref = ref []
 
-type lifted_printer = Feedback.feedback -> bool
-let dummy_printer : lifted_printer =  (fun f -> false)
+let install_printer (p:  (module Printer)) =
+  installed_printers := p :: !installed_printers
 
-let installed_printers : lifted_printer ref = ref dummy_printer
-
-let install_printer (module P : Printer) =
-  installed_printers := !installed_printers >>= P.print_func;
-  Pp.set_feeder (fun f -> ignore (!installed_printers f))
+let run_printers f = List.iter (fun (module P : Printer) ->
+  ignore (lift (P.print_func) f)) !installed_printers
 
 let init_printers () =
   List.iter install_printer [error_printer; goal_printer; glob_printer; dependency_printer; rest_printer];
+  Pp.set_feeder (fun f -> ignore (run_printers f));
   Pp.log_via_feedback ()
 
 let initialize () =
