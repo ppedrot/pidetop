@@ -8,6 +8,7 @@ pide/coq_messages.ml
 pide/coq_messages.mli
 pide/coq_output.ml
 pide/coq_output.mli
+pide/dependency_printer.ml
 pide/error_printer.ml
 pide/glob_printer.ml
 pide/goal_printer.ml

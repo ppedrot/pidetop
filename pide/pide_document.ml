@@ -270,12 +270,6 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let dependency_printer : (module Pide_printer.Printer) = (module struct
-  let print_func id route = function
-  | Feedback.FileDependency (from, depends_on) -> (* TODO! *) ()
-  | _ -> raise Pide_printer.Unhandled
-end)
-
 let rest_printer : (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.Processed ->
@@ -316,7 +310,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let init_printers () =
-  List.iter install_printer [dependency_printer; rest_printer];
+  List.iter install_printer [rest_printer];
   Pp.set_feeder (fun f -> ignore (run_printers f));
   Pp.log_via_feedback ()
 

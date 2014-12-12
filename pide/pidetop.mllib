@@ -14,6 +14,7 @@ Coq_input
 Pide_protocol
 Pide_slave
 Pide_goalprint
+Dependecy_printer
 Error_printer
 Glob_printer
 Goal_printer
