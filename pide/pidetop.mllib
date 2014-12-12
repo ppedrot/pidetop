@@ -15,4 +15,5 @@ Pide_protocol
 Pide_slave
 Pide_goalprint
 Glob_printer
+Goal_printer
 Pide_top

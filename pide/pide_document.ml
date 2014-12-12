@@ -270,23 +270,6 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let goal_printer: (module Pide_printer.Printer) = (module struct
-  let already_printed = ref Int.Set.empty
-  let print_func id route = function
-  | Feedback.Custom(loc,"structured_goals",goals) ->
-      let pos = Position.of_loc loc id in
-      Coq_output.report pos [goals]
-
-  | Feedback.Goals (loc,goalstate) ->
-      (if Int.Set.mem id !already_printed then ()
-       else (
-         already_printed := Int.Set.add id !already_printed;
-         let pos = Position.of_loc loc id in
-         let source = Properties.put ("source", "goal") Properties.empty in
-         writeln pos ~props:source goalstate))
-  | _ -> raise Pide_printer.Unhandled
-end)
-
 let error_printer: (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.ErrorMsg (loc, txt) ->
@@ -351,7 +334,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let init_printers () =
-  List.iter install_printer [error_printer; goal_printer; dependency_printer; rest_printer];
+  List.iter install_printer [error_printer; dependency_printer; rest_printer];
   Pp.set_feeder (fun f -> ignore (run_printers f));
   Pp.log_via_feedback ()
 
