@@ -275,24 +275,20 @@ module type Printer =
     val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> unit
   end
 
-let position_of_loc loc =
-  if Loc.is_ghost loc then Position.id_only
-  else let i, j = Loc.unloc loc in Position.make_id (i+1) (j+1)
-
 exception Unhandled
 
 let goal_printer: (module Printer) = (module struct
   let already_printed = ref Int.Set.empty
   let print_func id route = function
   | Feedback.Custom(loc,"structured_goals",goals) ->
-      let pos = position_of_loc loc id in
+      let pos = Position.of_loc loc id in
       Coq_output.report pos [goals]
 
   | Feedback.Goals (loc,goalstate) ->
       (if Int.Set.mem id !already_printed then ()
        else (
          already_printed := Int.Set.add id !already_printed;
-         let pos = position_of_loc loc id in
+         let pos = Position.of_loc loc id in
          let source = Properties.put ("source", "goal") Properties.empty in
          writeln pos ~props:source goalstate))
   | _ -> raise Unhandled
@@ -301,7 +297,7 @@ end)
 let error_printer: (module Printer) = (module struct
   let print_func id route = function
   | Feedback.ErrorMsg (loc, txt) ->
-    let pos = position_of_loc loc id in
+    let pos = Position.of_loc loc id in
     if route <> Feedback.default_route then begin
       result pos route status_finished;
       let message_body =

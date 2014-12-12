@@ -5,6 +5,8 @@ val none: t
 val id_only: int -> t
 val properties_of: t -> Properties.t
 
+val of_loc : Loc.t -> int -> t
+
 (* These need to move to Markup. *)
 val markup: t -> Markup.t -> Markup.t
 type report = t * Markup.t
