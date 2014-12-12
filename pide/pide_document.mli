@@ -33,21 +33,10 @@ val update: version_id -> version_id -> edit list -> state ->
 
 val remove_versions: version_id list -> state -> state
 
-(** Printers *)
-(* Printers are modular: they contain a number of related functions related
- * to print asynchronously.
- * This is mainly to allow printers to be defined in external libraries.
- *)
-module type Printer =
-  sig
-    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> unit
-  end
-
-exception Unhandled
 (* Install a printer to the current printer stack. The printer will be executed
  * last.
  *)
-val install_printer: (module Printer) -> unit
+val install_printer: (module Pide_printer.Printer) -> unit
 
 (* Executes the given 'transaction': 
  *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered

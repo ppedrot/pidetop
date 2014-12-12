@@ -8,6 +8,7 @@ Coq_markup
 Position
 Coq_output
 Coq_messages
+Pide_printer
 Pide_document
 Coq_input
 Pide_protocol

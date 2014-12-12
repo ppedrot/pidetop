@@ -26,6 +26,7 @@ pide/position.ml
 pide/position.mli
 pide/properties.ml
 pide/properties.mli
+pide/pide_printer.mli
 pide/yxml.ml
 pide/yxml.mli
 

@@ -270,14 +270,7 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-module type Printer =
-  sig
-    val print_func: int -> Feedback.route_id -> Feedback.feedback_content -> unit
-  end
-
-exception Unhandled
-
-let goal_printer: (module Printer) = (module struct
+let goal_printer: (module Pide_printer.Printer) = (module struct
   let already_printed = ref Int.Set.empty
   let print_func id route = function
   | Feedback.Custom(loc,"structured_goals",goals) ->
@@ -291,10 +284,10 @@ let goal_printer: (module Printer) = (module struct
          let pos = Position.of_loc loc id in
          let source = Properties.put ("source", "goal") Properties.empty in
          writeln pos ~props:source goalstate))
-  | _ -> raise Unhandled
+  | _ -> raise Pide_printer.Unhandled
 end)
 
-let error_printer: (module Printer) = (module struct
+let error_printer: (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.ErrorMsg (loc, txt) ->
     let pos = Position.of_loc loc id in
@@ -308,17 +301,17 @@ let error_printer: (module Printer) = (module struct
       status pos status_finished;
       error_msg pos txt
     end
-  | _ -> raise Unhandled
+  | _ -> raise Pide_printer.Unhandled
 end)
 
 
-let dependency_printer : (module Printer) = (module struct
+let dependency_printer : (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.FileDependency (from, depends_on) -> (* TODO! *) ()
-  | _ -> raise Unhandled
+  | _ -> raise Pide_printer.Unhandled
 end)
 
-let rest_printer : (module Printer) = (module struct
+let rest_printer : (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.Processed ->
       let position = Position.id_only id in
@@ -335,7 +328,7 @@ let rest_printer : (module Printer) = (module struct
         let source = Properties.put ("source", "query") Properties.empty in
         writeln position ~props:source s
       end
-  | _ -> raise Unhandled
+  | _ -> raise Pide_printer.Unhandled
 end)
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
@@ -346,15 +339,15 @@ let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   in
   f i route contents
 
-let installed_printers : (module Printer) list ref = ref []
+let installed_printers : (module Pide_printer.Printer) list ref = ref []
 
-let install_printer (p:  (module Printer)) =
+let install_printer (p:  (module Pide_printer.Printer)) =
   installed_printers := p :: !installed_printers
 
-let run_printers f = List.iter (fun (module P : Printer) ->
+let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
     try lift (P.print_func) f
     with
-      Unhandled -> ())
+      Pide_printer.Unhandled -> ())
   !installed_printers
 
 let init_printers () =

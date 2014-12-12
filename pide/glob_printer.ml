@@ -1,4 +1,4 @@
-let glob_printer : (module Pide_document.Printer) = (module struct
+let glob_printer : (module Pide_printer.Printer) = (module struct
   (* TODO: These definitions are yanked from the Coqdoc implementation.
    * It is probably a good idea to be more principled, and factor the functions
    * into some shared library with Coq...
@@ -89,7 +89,7 @@ let glob_printer : (module Pide_document.Printer) = (module struct
         let position = Position.of_loc loc id in
         Coq_output.report position (Coq_markup.entity id loc dest_id dest name ty)
       )
-  | _ -> raise Pide_document.Unhandled
+  | _ -> raise Pide_printer.Unhandled
 end)
 
 let () = Pide_document.install_printer glob_printer
