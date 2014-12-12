@@ -8,6 +8,7 @@ pide/coq_messages.ml
 pide/coq_messages.mli
 pide/coq_output.ml
 pide/coq_output.mli
+pide/glob_printer.ml
 pide/markup.ml
 pide/markup.mli
 pide/pide_document.ml
