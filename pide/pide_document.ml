@@ -270,26 +270,6 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let rest_printer : (module Pide_printer.Printer) = (module struct
-  let print_func id route = function
-  | Feedback.Processed ->
-      let position = Position.id_only id in
-      status position status_finished
-  | Feedback.Message { Feedback.message_content = s } ->
-      let position = Position.id_only id in
-      if route <> Feedback.default_route then begin
-        result position route status_finished;
-        let message_body =
-          Xml_datatype.Element(writelnN, [], Pide_xml.Encode.string s) in
-        result position route [message_body]
-      end
-      else begin
-        let source = Properties.put ("source", "query") Properties.empty in
-        writeln position ~props:source s
-      end
-  | _ -> raise Pide_printer.Unhandled
-end)
-
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   let i = match id with
   | Feedback.State exec_id ->
@@ -310,7 +290,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let init_printers () =
-  List.iter install_printer [rest_printer];
+  List.iter install_printer [];
   Pp.set_feeder (fun f -> ignore (run_printers f));
   Pp.log_via_feedback ()
 

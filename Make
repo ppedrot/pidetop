@@ -31,6 +31,7 @@ pide/properties.ml
 pide/properties.mli
 pide/pide_printer.ml
 pide/pide_printer.mli
+pide/rest_printer.ml
 pide/yxml.ml
 pide/yxml.mli
 

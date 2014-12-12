@@ -18,4 +18,5 @@ Dependecy_printer
 Error_printer
 Glob_printer
 Goal_printer
+Rest_printer
 Pide_top
