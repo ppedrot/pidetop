@@ -270,24 +270,6 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let error_printer: (module Pide_printer.Printer) = (module struct
-  let print_func id route = function
-  | Feedback.ErrorMsg (loc, txt) ->
-    let pos = Position.of_loc loc id in
-    if route <> Feedback.default_route then begin
-      result pos route status_finished;
-      let message_body =
-        Xml_datatype.Element(errorN, [], Pide_xml.Encode.string txt) in
-      result pos route [message_body]
-    end
-    else begin
-      status pos status_finished;
-      error_msg pos txt
-    end
-  | _ -> raise Pide_printer.Unhandled
-end)
-
-
 let dependency_printer : (module Pide_printer.Printer) = (module struct
   let print_func id route = function
   | Feedback.FileDependency (from, depends_on) -> (* TODO! *) ()
@@ -334,7 +316,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let init_printers () =
-  List.iter install_printer [error_printer; dependency_printer; rest_printer];
+  List.iter install_printer [dependency_printer; rest_printer];
   Pp.set_feeder (fun f -> ignore (run_printers f));
   Pp.log_via_feedback ()
 
