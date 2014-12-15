@@ -3,6 +3,9 @@ let rest_printer : (module Pide_printer.Printer) = (module struct
   | Feedback.Processed ->
       let position = Position.id_only id in
       Coq_output.status position Coq_markup.status_finished
+  | Feedback.AddedAxiom ->
+      let position = Position.id_only id in
+      Coq_output.warning_msg position "Axiom added."
   | Feedback.Message { Feedback.message_content = s } ->
       let position = Position.id_only id in
       (* TODO: Factor this out... *)
