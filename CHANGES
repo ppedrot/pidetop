@@ -7,5 +7,6 @@ Bugs fixed:
   - Issue #2: New worker architecture and feedback hooks take care of duplicate messages (more a Coq issue than a PIDE issue)
   - Issue #3: Using the new feedback hooks, PIDE can signal 'aborted' commands more properly.
   - Issue #9: Proper implementation of entity lookup.
+  - Issue #10: admit does not warn that an axiom was added.
  
 
