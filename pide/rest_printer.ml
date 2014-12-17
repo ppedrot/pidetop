@@ -7,7 +7,7 @@ module Rest_printer_s = struct
     | Feedback.Processed -> Position.id_only
     | _ -> raise Pide_printer.Unhandled
 
-   let make_body = function
+   let make_body _ = function
     | Feedback.Processed -> Some(Coq_markup.status_finished_element)
     | Feedback.Message { Feedback.message_content = s } ->
         Some(Xml_datatype.Element(Coq_markup.writelnN, [],

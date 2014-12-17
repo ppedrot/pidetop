@@ -8,7 +8,7 @@ module type Printer_spec = sig
   val make_pos: Feedback.feedback_content -> int -> Position.t
 
   (* Can have side effects *)
-  val make_body: Feedback.feedback_content -> Xml_datatype.xml option
+  val make_body: int -> Feedback.feedback_content -> Xml_datatype.xml option
 
   val output_function: Feedback.feedback_content ->
     Position.t -> Xml_datatype.xml list -> unit
@@ -23,7 +23,7 @@ module Make_printer(P: Printer_spec) = struct
 
   let print_func id route content =
     let position = make_pos content id in
-    match make_body content with
+    match make_body id content with
     | Some body ->
       if route = Feedback.default_route then
         (* Main result *)

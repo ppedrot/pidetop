@@ -11,7 +11,7 @@ module Error_printer: (Pide_printer.Printer_spec) = struct
     | Feedback.ErrorMsg (loc, _) -> Position.of_loc loc
     | _ -> raise Pide_printer.Unhandled
 
-  let make_body = function
+  let make_body _ = function
     | Feedback.ErrorMsg (loc, txt) ->
         Some (Xml_datatype.Element(Coq_markup.errorN, [],
           Pide_xml.Encode.string txt))
