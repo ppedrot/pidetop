@@ -21,7 +21,7 @@ let run_command name args stmq =
     with e -> 
       let e = Errors.push e in
       raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^
-                      Pp.string_of_ppcmds (Errors.print e)))
+                      Pp.string_of_ppcmds (Errors.iprint e)))
 
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
@@ -82,6 +82,6 @@ let rec loop stmq =
       run_command name args stmq
   with e when Errors.noncritical e ->
     let e = Errors.push e in
-    prerr_endline (Printexc.to_string e);
-    error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string e)));
+    prerr_endline (Printexc.to_string (fst e));
+    error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string (fst e))));
   loop stmq

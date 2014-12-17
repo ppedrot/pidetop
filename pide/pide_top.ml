@@ -26,7 +26,7 @@ let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
   Flags.make_silent true;
   Flags.async_proofs_never_reopen_branch := true;
-  Flags.async_proofs_always_delegate := true;
+  Flags.async_proofs_full := true;
   Hook.set Stm.state_computed_hook
     (fun id ~in_cache ->
        Pp.feedback ~state_id:id Feedback.Processed;
@@ -47,7 +47,7 @@ let protect f arg =
   try Some (f arg)
   with e when Errors.noncritical e ->
   let e = Errors.push e in
-  let msg = Pp.string_of_ppcmds (Errors.print e) in
+  let msg = Pp.string_of_ppcmds (Errors.iprint e) in
   prerr_endline msg;
   None
 

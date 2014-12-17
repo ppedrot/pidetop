@@ -143,7 +143,7 @@ let yxml_send header body =
     let bdy = string_of_body body in
     Channel.send hdr bdy; 
     Mutex.unlock m
-  with e -> let e = Errors.push e in Mutex.unlock m; raise e
+  with e -> let e = Errors.push e in Mutex.unlock m; Util.iraise e
 
 let read_command () = Channel.read_command () 
 

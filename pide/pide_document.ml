@@ -177,7 +177,7 @@ let query task_queue at route_id query_id text =
     try Stm.query ~at:at ~report_with:(query_id,route_id) text
     with e when Errors.noncritical e ->
       let e = Errors.push e in
-      let msg = Pp.string_of_ppcmds (Errors.print e) in
+      let msg = Pp.string_of_ppcmds (Errors.iprint e) in
       prerr_endline msg))) task_queue
 
 
