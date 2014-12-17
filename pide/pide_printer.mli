@@ -17,7 +17,7 @@ module type Printer_spec = sig
   val make_pos: Feedback.feedback_content -> int -> Position.t
 
   (* Can have side effects *)
-  val make_body: Feedback.feedback_content -> Xml_datatype.xml
+  val make_body: Feedback.feedback_content -> Xml_datatype.xml option
 
 
   val output_function: Feedback.feedback_content ->

@@ -8,7 +8,7 @@ module type Printer_spec = sig
   val make_pos: Feedback.feedback_content -> int -> Position.t
 
   (* Can have side effects *)
-  val make_body: Feedback.feedback_content -> Xml_datatype.xml
+  val make_body: Feedback.feedback_content -> Xml_datatype.xml option
 
   val output_function: Feedback.feedback_content ->
     Position.t -> Xml_datatype.xml list -> unit
@@ -23,16 +23,17 @@ module Make_printer(P: Printer_spec) = struct
 
   let print_func id route content =
     let position = make_pos content id in
-    let body = make_body content in
-    if route = Feedback.default_route then
-      (* Main result *)
-      (output_function content) position (children body)
-    else begin
-      (* Query result *)
-      Coq_output.result position route [Coq_markup.status_finished_element];
-      Coq_output.result position route [body]
-    end
-
+    match make_body content with
+    | Some body ->
+      if route = Feedback.default_route then
+        (* Main result *)
+        (output_function content) position (children body)
+      else begin
+        (* Query result *)
+        Coq_output.result position route [Coq_markup.status_finished_element];
+        Coq_output.result position route [body]
+      end
+    | None -> ()
 end
 
 

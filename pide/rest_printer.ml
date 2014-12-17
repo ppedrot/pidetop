@@ -8,9 +8,10 @@ module Rest_printer_s = struct
     | _ -> raise Pide_printer.Unhandled
 
    let make_body = function
-    | Feedback.Processed -> Coq_markup.status_finished_element
+    | Feedback.Processed -> Some(Coq_markup.status_finished_element)
     | Feedback.Message { Feedback.message_content = s } ->
-        Xml_datatype.Element(Coq_markup.writelnN, [], Pide_xml.Encode.string s)
+        Some(Xml_datatype.Element(Coq_markup.writelnN, [],
+          Pide_xml.Encode.string s))
     | _ -> raise Pide_printer.Unhandled
 
   let props = Properties.put ("source", "query") Properties.empty
