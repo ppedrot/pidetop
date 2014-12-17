@@ -65,7 +65,6 @@ let glob_printer : (module Pide_printer.Printer) = (module struct
           try Scanf.sscanf s "%s %d:%d %s %s"
             (fun ty loc1 loc2 secpath name ->
                let loc = Loc.make_loc (loc1, loc2) in
-               (* TODO: Store interpreted type, not raw ty string *)
                let typ = type_of_string ty in
                def_map := M.add (typ, name,  secpath) (loc, Coq_markup.ExtFile v_name) !def_map)
           with Scanf.Scan_failure _ | End_of_file -> ()
