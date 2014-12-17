@@ -22,18 +22,20 @@ module Make_printer(P: Printer_spec) = struct
     | _ -> []
 
   let print_func id route content =
-    let position = make_pos content id in
-    match make_body id content with
-    | Some body ->
-      if route = Feedback.default_route then
-        (* Main result *)
-        (output_function content) position (children body)
-      else begin
-        (* Query result *)
-        Coq_output.result position route [Coq_markup.status_finished_element];
-        Coq_output.result position route [body]
-      end
-    | None -> ()
+    if can_print content then begin
+      let position = make_pos content id in
+      match make_body id content with
+      | Some body ->
+        if route = Feedback.default_route then
+          (* Main result *)
+          (output_function content) position (children body)
+        else begin
+          (* Query result *)
+          Coq_output.result position route [Coq_markup.status_finished_element];
+          Coq_output.result position route [body]
+        end
+      | None -> ()
+    end
 end
 
 
