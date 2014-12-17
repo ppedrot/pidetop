@@ -11,4 +11,18 @@ module type Printer = sig
    *)
 end
 
+module type Printer_spec = sig
+  val can_print: Feedback.feedback_content -> bool
+
+  (* Can have side effects *)
+  val make_body: Feedback.feedback_content -> Xml_datatype.xml
+
+  val output_function: Feedback.feedback_content ->
+      Position.t -> Xml_datatype.xml list -> unit
+end
+
+
+module Make_printer(P: Printer_spec) : Printer
+
+
 exception Unhandled
