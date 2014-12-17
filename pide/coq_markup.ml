@@ -48,7 +48,7 @@ let removed_versions = [(functionN, "removed_versions")]
 let childless_node n = [Xml_datatype.Element (n, [], [])] 
 let status_running = childless_node "running"
 let status_finished = childless_node "finished"
-
+let status_finished_element = Xml_datatype.Element(statusN, [], status_finished)
 
 type entry_location =
   | Local of int

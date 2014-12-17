@@ -24,6 +24,7 @@ val removed_versions: Properties.t
 
 val status_running: Xml_datatype.xml list
 val status_finished: Xml_datatype.xml list
+val status_finished_element: Xml_datatype.xml
 
 
 type entry_location =
