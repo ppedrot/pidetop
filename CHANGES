@@ -10,5 +10,3 @@ Bugs fixed:
   - Issue #10: admit does not warn that an axiom was added.
   - Refactored the printer infrastructure to be more uniform. This handles several smaller issues uniformly. In particular, if a feedback is emitted in response to a query panel (in jEdit) command, it is always routed correctly.
 
- 
-
