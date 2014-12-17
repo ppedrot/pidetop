@@ -8,5 +8,7 @@ Bugs fixed:
   - Issue #3: Using the new feedback hooks, PIDE can signal 'aborted' commands more properly.
   - Issue #9: Proper implementation of entity lookup.
   - Issue #10: admit does not warn that an axiom was added.
+  - Refactored the printer infrastructure to be more uniform. This handles several smaller issues uniformly. In particular, if a feedback is emitted in response to a query panel (in jEdit) command, it is always routed correctly.
+
  
 
