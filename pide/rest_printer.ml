@@ -1,10 +1,10 @@
 module Rest_printer_s = struct
   let can_print = function
-    | Feedback.Processed | Feedback.Message _ -> true
+    | Feedback.Message _ | Feedback.Processed -> true
     | _ -> false
 
   let make_pos = function
-    | Feedback.Processed -> Position.id_only
+    | Feedback.Message _ | Feedback.Processed -> Position.id_only
     | _ -> raise Pide_printer.Unhandled
 
    let make_body _ = function
@@ -19,10 +19,6 @@ module Rest_printer_s = struct
     | Feedback.Processed -> Coq_output.status
     | Feedback.Message _ -> Coq_output.writeln ~props:props
     | _ -> raise Pide_printer.Unhandled
-
-  let children = function
-    | Xml_datatype.Element(_, _, c) -> c
-    | _ -> []
 end
 
 let () =
