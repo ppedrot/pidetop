@@ -1,19 +1,22 @@
-let error_printer: (module Pide_printer.Printer) = (module struct
-  let print_func id route = function
-  | Feedback.ErrorMsg (loc, txt) ->
-    let pos = Position.of_loc loc id in
-    (* TODO: Factor this out to generic code... *)
-    if route <> Feedback.default_route then begin
-      Coq_output.result pos route Coq_markup.status_finished;
-      let message_body =
-        Xml_datatype.Element(Coq_markup.errorN, [], Pide_xml.Encode.string txt) in
-      Coq_output.result pos route [message_body]
-    end
-    else begin
-      Coq_output.status pos Coq_markup.status_finished;
-      Coq_output.error_msg pos (Pide_xml.Encode.string txt)
-    end
-  | _ -> raise Pide_printer.Unhandled
-end)
+module Error_printer: (Pide_printer.Printer_spec) = struct
+  let can_print = function
+    | Feedback.ErrorMsg _ -> true
+    | _ -> false
 
-let () = Pide_document.install_printer error_printer
+  let output_function = function
+    | Feedback.ErrorMsg _ -> Coq_output.error_msg ?props:None
+    | _ -> raise Pide_printer.Unhandled
+
+  let make_pos = function
+    | Feedback.ErrorMsg (loc, _) -> Position.of_loc loc
+    | _ -> raise Pide_printer.Unhandled
+
+  let make_body = function
+    | Feedback.ErrorMsg (loc, txt) ->
+        Xml_datatype.Element(Coq_markup.errorN, [], Pide_xml.Encode.string txt)
+    | _ -> raise Pide_printer.Unhandled
+end
+
+let () =
+  let module P = Pide_printer.Make_printer(Error_printer) in
+  Pide_document.install_printer(module P)

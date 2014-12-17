@@ -1,8 +1,11 @@
 module Rest_printer_s = struct
- (* : (module Pide_printer.Printer_spec) = (module struct*)
   let can_print = function
     | Feedback.Processed | Feedback.Message _ -> true
     | _ -> false
+
+  let make_pos = function
+    | Feedback.Processed -> Position.id_only
+    | _ -> raise Pide_printer.Unhandled
 
    let make_body = function
     | Feedback.Processed -> Coq_markup.status_finished_element
