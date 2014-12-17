@@ -1,7 +1,8 @@
 (* Send initialization message *)
 val init_message : string -> unit
 
-type standard_message_t = Position.t -> ?props: Properties.t -> string -> unit
+type standard_message_t = Position.t -> ?props: Properties.t ->
+  Xml_datatype.xml list -> unit
 
 (* Write a line *)
 val writeln : standard_message_t

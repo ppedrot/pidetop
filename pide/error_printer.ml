@@ -11,7 +11,7 @@ let error_printer: (module Pide_printer.Printer) = (module struct
     end
     else begin
       Coq_output.status pos Coq_markup.status_finished;
-      Coq_output.error_msg pos txt
+      Coq_output.error_msg pos (Pide_xml.Encode.string txt)
     end
   | _ -> raise Pide_printer.Unhandled
 end)

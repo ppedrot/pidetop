@@ -11,7 +11,7 @@ let goal_printer: (module Pide_printer.Printer) = (module struct
          already_printed := Int.Set.add id !already_printed;
          let pos = Position.of_loc loc id in
          let source = Properties.put ("source", "goal") Properties.empty in
-         Coq_output.writeln pos ~props:source goalstate))
+         Coq_output.writeln pos ~props:source (Pide_xml.Encode.string goalstate)))
   | _ -> raise Pide_printer.Unhandled
 end)
 

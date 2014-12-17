@@ -25,7 +25,7 @@ let run_command name args stmq =
 
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
-     List.iter (writeln Position.none) args);
+     List.iter (fun s -> writeln Position.none (Pide_xml.Encode.string s)) args);
 
   register_protocol_command "Document.discontinue_execution" (fun stmq _ ->
 (*    TQueue.clear stmq; *)
@@ -75,12 +75,13 @@ let initialize () =
 let rec loop stmq =
   (try match read_command () with
   | None -> ()
-  | Some [] -> error_msg Position.none "Coq process: no input"
+  | Some [] -> error_msg Position.none
+    (Pide_xml.Encode.string "Coq process: no input")
   | Some (name :: args) ->
       prerr_endline ("got message: "^ name);
       run_command name args stmq
   with e when Errors.noncritical e ->
     let e = Errors.push e in
     prerr_endline (Printexc.to_string e);
-    error_msg Position.none (Printexc.to_string e));
+    error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string e)));
   loop stmq

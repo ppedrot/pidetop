@@ -74,8 +74,8 @@ let glob_printer : (module Pide_printer.Printer) = (module struct
         close_in c
     with Sys_error s ->
       Coq_output.warning_msg (Position.id_only id)
-        ("Warning: " ^ glob_name ^
-         ": No such file or directory (links will not be available)")
+        (Pide_xml.Encode.string ("Warning: " ^ glob_name ^
+         ": No such file or directory (links will not be available)"))
 
   let print_func id route = function
   | Feedback.FileLoaded(dirname, filename) ->
