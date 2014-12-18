@@ -5,7 +5,7 @@ module Dependency_printer : (Pide_printer.Printer_spec) = struct
 
   let make_pos _ = Position.id_only
   let output_function _ _ _= () (* TODO! *)
-  let make_body = function
+  let make_body _ = function
   | Feedback.FileDependency (from, depends_on) -> (* TODO! *) None
   | _ -> raise Pide_printer.Unhandled
 end
