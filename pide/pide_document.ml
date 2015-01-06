@@ -196,8 +196,14 @@ let get_queries stmq cid at ov: exec_id list =
     else acc)
   ov []
 
+let emit_goal stmq at: exec_id =
+  let eid = Stateid.fresh () in
+  (* TODO: Factor this differently, hardcoded query... *)
+  query stmq at Feedback.default_route eid "PideFeedbackGoals.";
+  eid
+
 let set_overlay stmq cid at ov: exec_id list =
-  let mandatory = [] in (* Queries that execute on all states *)
+  let mandatory = [emit_goal stmq at] in (* Queries that execute on all states *)
   let queries = get_queries stmq cid at ov in
   mandatory @ queries
 
