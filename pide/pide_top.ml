@@ -1,27 +1,3 @@
-(* STM customization *)
-
-let print_goals_of_state, forward_feedback =
-  let already_printed = ref Stateid.Set.empty in
-  let add_to_already_printed =
-    let m = Mutex.create () in
-    fun id ->
-      Mutex.lock m;
-      already_printed := Stateid.Set.add id !already_printed;
-      Mutex.unlock m in
-  (fun id state ->
-    if Stateid.Set.mem id !already_printed then ()
-    else begin
-      add_to_already_printed id;
-      Pide_goalprint.feedback_structured_goals id state
-  end),
-  (let open Feedback in let open Pp in function
-   | {id = State state_id; route; contents = (Goals _ as m)} ->
-      add_to_already_printed state_id; feedback ~state_id ~route m
-   | {id = Edit edit_id; route; contents} -> feedback ~edit_id ~route contents
-   | {id = State state_id;route;contents} -> feedback ~state_id ~route contents)
-
-(* end STM customization *)
-
 let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
   Flags.make_silent true;

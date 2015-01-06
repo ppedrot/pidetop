@@ -8,12 +8,11 @@ let () = Coqtop.toploop_init := (fun args ->
 
 let () = Coqtop.toploop_run := W.main_loop
 
+
+(* TODO: This was removed in feature/goalprint_overlay, not sure if it still is
+ * necessary, in particular the unreachable_state_hook.
+ *)
 let () = 
-  Hook.set Stm.state_computed_hook
-    (fun id ~in_cache ->
-       Pp.feedback ~state_id:id Feedback.Processed;
-       Option.iter
-         (Pide_goalprint.feedback_structured_goals id) (Stm.state_of_id id));
   Hook.set Stm.unreachable_state_hook
     (fun id ->
       Pp.feedback ~state_id:id Feedback.Processed)

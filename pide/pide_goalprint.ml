@@ -15,9 +15,9 @@ let process_goal sigma g =
     (List.rev (Environ.fold_named_context process_hyp env ~init:[]))) in
   Xml_datatype.Element ("goal", [("id", id)], [hyps; ccl])
 
-let feedback_structured_goals state_id { Stm.proof } =
+let feedback_structured_goals () =
   try
-      let pfts = Proof_global.proof_of_state proof in
+      let pfts = Proof_global.give_me_the_proof () in
       let structured_goals = Proof.map_structured_proof pfts process_goal in
       let xml_bg_goal = fun (l, r) -> Xml_datatype.Element("bg_goal", [], 
           [Xml_datatype.Element("left_bg_goals", [], l); 
@@ -34,9 +34,9 @@ let feedback_structured_goals state_id { Stm.proof } =
             structured_goals.Proof.given_up_goals)
         ]
       ) in
-      Pp.feedback ~state_id
+      Pp.feedback
        (Feedback.Custom(Loc.ghost, "structured_goals",xml_structured_goals));
-      Pp.feedback ~state_id
+      Pp.feedback
         (Feedback.Goals
           (Loc.ghost, Pp.string_of_ppcmds
             (Printer.pr_open_subgoals
