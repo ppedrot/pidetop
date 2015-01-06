@@ -181,7 +181,7 @@ let query task_queue at route_id query_id text =
       prerr_endline msg))) task_queue
 
 
-let set_overlay stmq cid at ov st: exec_id list =
+let get_queries stmq cid at ov: exec_id list =
   List.fold_right (fun (oid, (command, args)) acc ->
     if command = "coq_query" then
       match args with
@@ -195,6 +195,11 @@ let set_overlay stmq cid at ov st: exec_id list =
       | _ -> acc
     else acc)
   ov []
+
+let set_overlay stmq cid at ov: exec_id list =
+  let mandatory = [] in (* Queries that execute on all states *)
+  let queries = get_queries stmq cid at ov in
+  mandatory @ queries
 
 let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
@@ -220,7 +225,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
           chop_common old_entries entries in
         let common_execs = List.fold_right
           (fun (id, exec_id) acc ->
-            let id_overlay = set_overlay tasks id exec_id overlay st in
+            let id_overlay = set_overlay tasks id exec_id overlay in
             if id_overlay = [] then acc
             else (id, exec_id :: id_overlay) :: acc
             ) common [] in
@@ -242,7 +247,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         tip new_computation');
       let overlay_execs =
         List.fold_right (fun (id, exec_id) acc ->
-          let id_overlay = set_overlay tasks id exec_id overlay st in
+          let id_overlay = set_overlay tasks id exec_id overlay in
           (id, exec_id :: id_overlay):: acc)
         new_computation' [] in
       let command_execs =
