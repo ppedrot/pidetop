@@ -26,9 +26,9 @@ As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to 
 
 ### Coq
 - Branch: trunk at https://github.com/coq/coq
-- Revision: [c6d356844ec857b376302c50c925faae558814a9](https://github.com/coq/coq/commit/c6d356844ec857b376302c50c925faae558814a9)
+- Revision: [b721d1352e9a2650921ae06aa434ec5e39fa578e](https://github.com/coq/coq/commit/b721d1352e9a2650921ae06aa434ec5e39fa578e)
 - Notes:
-    * This revision of Coq fixes issue #18 reported on the Pide_notes repository: too many coqtop processes were used, with large amount of memory. Because this fix induced an API change, it also requires an updated PIDEtop.
+    * This Coq revision adds a new hook used for running queries on a computed states.
     * For previous versions of Coq trunk, use a slightly older version of PIDEtop.
     
 
