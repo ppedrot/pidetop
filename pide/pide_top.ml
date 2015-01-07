@@ -3,14 +3,9 @@ let () = Coqtop.toploop_init := (fun args ->
   Flags.make_silent true;
   Flags.async_proofs_never_reopen_branch := true;
   Flags.async_proofs_full := true;
-  Hook.set Stm.state_computed_hook
-    (fun id ~in_cache ->
-       Pp.feedback ~state_id:id Feedback.Processed;
-       Option.iter (print_goals_of_state id) (Stm.state_of_id id));
   Hook.set Stm.unreachable_state_hook
     (fun id ->
       Pp.feedback ~state_id:id Feedback.Processed);
-  Hook.set Stm.forward_feedback_hook forward_feedback;
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
   Flags.async_proofs_flags_for_workers := ["-feedback-glob"];
