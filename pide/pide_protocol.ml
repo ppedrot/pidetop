@@ -23,6 +23,28 @@ let run_command name args stmq =
       raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^
                       Pp.string_of_ppcmds (Errors.iprint e)))
 
+
+let execute stmq task_queue =
+  Queue.iter (fun t -> TQueue.push stmq t) task_queue;
+  Queue.clear task_queue
+
+let query_list = ref []
+
+let in_cache eid =
+  match Stm.state_of_id eid with
+  | `Expired | `Valid None -> false
+  | _ -> true
+
+let set_queries_of_exec stmq (exec_id, queries) =
+  if in_cache exec_id then
+    List.iter (fun query -> TQueue.push stmq (query :> task)) queries
+  else
+      query_list :=  (exec_id, queries) :: !query_list
+
+let set_queries stmq queries =
+  query_list := [];
+  List.iter (set_queries_of_exec stmq) queries
+
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
      List.iter (fun s -> writeln Position.none (Pide_xml.Encode.string s)) args);
@@ -50,14 +72,18 @@ let initialize_commands () =
         let old_id = Pide_document.parse_id old_id_str in
         let new_id = Pide_document.parse_id new_id_str in
         let new_transaction = ref (Queue.create ()) in
+        let queries = ref [] in
         let edits = obtain_edits edits_yxml in
         Pide_document.change_state (fun state ->
           let (assignment, tasks, state') =
             Pide_document.update old_id new_id edits state in
           assignment_message new_id assignment;
-          new_transaction := tasks;
+          let (document_updates, query_tasks) = tasks in
+          new_transaction := document_updates;
+          queries := query_tasks;
           state');
-        Pide_document.execute stmq !new_transaction
+        execute stmq !new_transaction;
+        set_queries stmq !queries
     | _ -> assert false);
   register_protocol_command "Document.remove_versions" (fun _ args ->
     match args with

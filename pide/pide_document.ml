@@ -170,18 +170,18 @@ let add task_queue exec_id tip edit_id text =
   with e when Errors.noncritical e -> None))) task_queue;
   exec_id
 
-let query task_queue at route_id query_id text =
-  Queue.push (`Query (lazy (
+let query at route_id query_id text =
+  `Query (lazy (
     let position = Position.id_only (Stateid.to_int query_id) in
     status position status_running;
     try Stm.query ~at:at ~report_with:(query_id,route_id) text
     with e when Errors.noncritical e ->
       let e = Errors.push e in
       let msg = Pp.string_of_ppcmds (Errors.iprint e) in
-      prerr_endline msg))) task_queue
+      prerr_endline msg))
 
 
-let get_queries stmq cid at ov: exec_id list =
+let get_queries cid at ov =
   List.fold_right (fun (oid, (command, args)) acc ->
     if command = "coq_query" then
       match args with
@@ -189,22 +189,22 @@ let get_queries stmq cid at ov: exec_id list =
         if oid = cid then
           let eid = Stateid.fresh () in
           let iid = int_of_string instance in
-          query stmq at iid eid query_text;
-          (eid :: acc)
+          let q = query at iid eid query_text in
+          ((eid, q) :: acc)
         else acc
       | _ -> acc
     else acc)
   ov []
 
-let emit_goal stmq at: exec_id =
-  let eid = Stateid.fresh () in
-  (* TODO: Factor this differently, hardcoded query... *)
-  query stmq at Feedback.default_route eid "PideFeedbackGoals.";
-  eid
 
-let set_overlay stmq cid at ov: exec_id list =
-  let mandatory = [emit_goal stmq at] in (* Queries that execute on all states *)
-  let queries = get_queries stmq cid at ov in
+let emit_goal at =
+    let eid = Stateid.fresh () in
+    (* TODO: Factor this differently, hardcoded query... *)
+    [eid, query at Feedback.default_route eid "PideFeedbackGoals."]
+
+let set_overlay cid at ov: (exec_id * [`Query of unit lazy_t]) list =
+  let mandatory = emit_goal at in (* Queries that execute on all states *)
+  let queries = get_queries cid at ov in
   mandatory @ queries
 
 let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
@@ -223,6 +223,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let Version old_nodes as old_version = the_version st v_old in
   let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
   let tasks = Queue.create () in
+  let query_list = ref [] in
   let updated =
     new_nodes |> List.map (fun (name, Node (entries, perspective, overlay)) ->
       if List.mem_assoc name edits then
@@ -231,9 +232,12 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
           chop_common old_entries entries in
         let common_execs = List.fold_right
           (fun (id, exec_id) acc ->
-            let id_overlay = set_overlay tasks id exec_id overlay in
-            if id_overlay = [] then acc
-            else (id, exec_id :: id_overlay) :: acc
+            let queries = set_overlay id exec_id overlay in
+            let ids_queries = List.map fst queries in
+            let query_tasks = List.map snd queries in
+            query_list := (exec_id, query_tasks) :: !query_list;
+            if ids_queries = [] then acc
+            else (id, exec_id :: ids_queries) :: acc
             ) common [] in
         let tip =
           if common = [] then !initial_state
@@ -253,8 +257,11 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         tip new_computation');
       let overlay_execs =
         List.fold_right (fun (id, exec_id) acc ->
-          let id_overlay = set_overlay tasks id exec_id overlay in
-          (id, exec_id :: id_overlay):: acc)
+          let queries = set_overlay id exec_id overlay in
+          let ids_queries = List.map fst queries in
+          let query_tasks = List.map snd queries in
+          query_list := (exec_id, query_tasks) :: !query_list;
+          (id, exec_id :: ids_queries):: acc)
         new_computation' [] in
       let command_execs =
         List.map (fun (id, _) -> (id, [])) outdated_computation @
@@ -275,11 +282,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let updated_nodes = List.flatten (List.map snd updated) in
   let state' = define_version v_new
     (List.fold_left put_node new_version updated_nodes) st in
-  (command_execs, tasks, state')
-
-let execute stmq task_queue =
-  Queue.iter (fun t -> TQueue.push stmq t) task_queue;
-  Queue.clear task_queue
+  (command_execs, (tasks, !query_list), state')
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
   let i = match id with

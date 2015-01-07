@@ -9,3 +9,5 @@ val initialize : unit -> unit
  *)
 type task = [ `Observe | `Add of Stateid.t option lazy_t | `EditAt of Stateid.t | `Query of unit lazy_t ]
 val loop : task TQueue.t -> unit
+
+val query_list : (Stateid.t * [`Query of unit lazy_t] list) list ref

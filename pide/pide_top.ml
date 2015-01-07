@@ -13,6 +13,13 @@ let () = Coqtop.toploop_init := (fun args ->
   args)
 
 let stm_queue = TQueue.create ()
+let () = Hook.set Stm.state_ready_hook (fun stateid ->
+  try
+    let queries = List.assoc stateid !Pide_protocol.query_list in
+    List.iter (fun query -> TQueue.push stm_queue (query :> Pide_protocol.task))
+      queries
+  with Not_found -> ()
+)
 
 let protect f arg =
   try Some (f arg)

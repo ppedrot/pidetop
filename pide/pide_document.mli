@@ -29,7 +29,7 @@ type edit = string * node_edit
 val define_command: command_id -> bool -> string -> state -> state
 
 val update: version_id -> version_id -> edit list -> state ->
-  (command_id * exec_id list) list * Pide_protocol.task Queue.t * state
+  (command_id * exec_id list) list * (Pide_protocol.task Queue.t * (exec_id * [ `Query of unit lazy_t ] list) list) * state
 
 val remove_versions: version_id list -> state -> state
 
@@ -37,13 +37,6 @@ val remove_versions: version_id list -> state -> state
  * last.
  *)
 val install_printer: (module Pide_printer.Printer) -> unit
-
-(* Executes the given 'transaction': 
- *  FIXME: Enrico says that there might be situations when the tip needs to be retracted when a later error is encountered
- *  TODO: Is this the right place to start shuffling the queues?
- *)
-val execute:
-  Pide_protocol.task TQueue.t -> Pide_protocol.task Queue.t -> unit
 
 val change_state: (state -> state) -> unit
 
