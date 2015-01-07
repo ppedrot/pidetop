@@ -232,12 +232,14 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
           chop_common old_entries entries in
         let common_execs = List.fold_right
           (fun (id, exec_id) acc ->
-            let queries = set_overlay id exec_id overlay in
-            let ids_queries = List.map fst queries in
-            let query_tasks = List.map snd queries in
-            query_list := (exec_id, query_tasks) :: !query_list;
-            if ids_queries = [] then acc
-            else (id, exec_id :: ids_queries) :: acc
+            if List.mem id perspective then (
+              let queries = set_overlay id exec_id overlay in
+              let ids_queries = List.map fst queries in
+              let query_tasks = List.map snd queries in
+              query_list := (exec_id, query_tasks) :: !query_list;
+              if ids_queries = [] then acc
+              else (id, exec_id :: ids_queries) :: acc)
+            else acc
             ) common [] in
         let tip =
           if common = [] then !initial_state
@@ -257,11 +259,14 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         tip new_computation');
       let overlay_execs =
         List.fold_right (fun (id, exec_id) acc ->
-          let queries = set_overlay id exec_id overlay in
-          let ids_queries = List.map fst queries in
-          let query_tasks = List.map snd queries in
-          query_list := (exec_id, query_tasks) :: !query_list;
-          (id, exec_id :: ids_queries):: acc)
+          if List.mem id perspective then (
+            let queries = set_overlay id exec_id overlay in
+            let ids_queries = List.map fst queries in
+            let query_tasks = List.map snd queries in
+            query_list := (exec_id, query_tasks) :: !query_list;
+            (id, exec_id :: ids_queries):: acc)
+          else (id, [exec_id]) :: acc)
+
         new_computation' [] in
       let command_execs =
         List.map (fun (id, _) -> (id, [])) outdated_computation @
