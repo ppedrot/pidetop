@@ -243,7 +243,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
             ) common [] in
         let tip =
           if common = [] then !initial_state
-          else snd (CList.last common) in
+          else snd (CList.last (List.filter (fun (cid, _) ->
+              not (fst (the_command st cid)))
+            common)) in
         Queue.push (`EditAt tip) tasks;
 
         let new_computation' = List.map
