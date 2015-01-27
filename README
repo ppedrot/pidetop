@@ -22,20 +22,11 @@ See compatibility, below, for notes.
 Compatibility
 -------------
 
-As of revision b1a4d6befffad9c1d8cf23ee4d16b78e47de0000, the plugin is known to work with the following versions of Coq and PIDE:
+This version of PIDEtop, Coq-0.2.0, is known to work with the following versions of Coq and PIDE:
 
 ### Coq
-- Branch: trunk at https://github.com/coq/coq
-- Revision: [b721d1352e9a2650921ae06aa434ec5e39fa578e](https://github.com/coq/coq/commit/b721d1352e9a2650921ae06aa434ec5e39fa578e)
-- Notes:
-    * This Coq revision adds a new hook used for running queries on a computed states.
-    * For previous versions of Coq trunk, use a slightly older version of PIDEtop.
-    
+- Version: 8.5beta1
+   
 
 ### PIDE
-- Branch: standalone at https://bitbucket.org/Carst/pide_notes/ (the eventual new version of Coq/jEdit)
-- Revision 829097ffdd02
-- Notes:
-    * This revision adds support for the new behaviour of query-prints. Using an older version (e.g., the 0.1.1 release) should not cause any real problems, but the status indicator of the query panel will remain spinning.
-    * The PIDE_notes repository is a Mercurial repository, not a Git one.
-    * The README.coq file in the repo provides a brief overview on how to run Isabelle/jEdit with Coq. These notes are a bit outdated/broken. The main problem is that ./bin/isabelle build no longer compiles the jars, and therefore does not build Pure, or creates the jEdit folder. A partial solution is to get a clean version of Isabelle from http://isabelle.in.tum.de and use the ./bin/isabelle build script from that distribtion to obtain a Pure heap. That clean version can also be used instead of the Tools/jEdit/dist/jars relative to the repository.
+- Version: Coq-0.2.0
