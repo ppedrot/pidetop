@@ -1,22 +1,25 @@
 PIDEtop
 =======
 
-This repository provides a toplevel plugin to make Coq speak the PIDE protocol. If you are looking for a release to go with PIDE, checkout the PIDEtop branch (the default branch of this repository).
+This repository provides sources for a toplevel plugin to make Coq speak the PIDE protocol. If you are looking for a release to go with PIDE, checkout the PIDEtop branch (the default branch of this repository).
 
 **Unless you are using Windows, you should not be using the 'download' page on the left. Follow the build instructions below.**
 
-Building
---------
+Installing
+----------
 
-Building is driven by coq_makefile and make
+You can build this version of the toploop using Opam (using the Coq 8.5 repository):
 
-$ export COQBIN=/your/path/to/coq/trunk/bin/
+$ opam install pidetop
 
-$ /your/path/to/coq/trunk/bin/coq_makefile -f Make > Makefile
+
+Alternatively, building by hand from these sources is driven by coq_makefile and make
+
+$ export COQBIN=/your/path/to/coq/bin/
+
+$ $COQBIN/coq_makefile -f Make > Makefile
 
 $ make install-toploop
-
-See compatibility, below, for notes.
 
 
 Compatibility
