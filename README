@@ -1,9 +1,12 @@
 PIDEtop
 =======
 
-This repository provides sources for a toplevel plugin to make Coq speak the PIDE protocol. If you are looking for a release to go with PIDE, checkout the PIDEtop branch (the default branch of this repository).
+This repository provides sources for a toplevel plugin to make Coq speak the
+PIDE protocol. If you are looking for a release to go with PIDE, checkout the
+PIDEtop branch (the default branch of this repository).
 
-**Unless you are using Windows, you should not be using the 'download' page on the left. Follow the build instructions below.**
+**Unless you are using Windows, you should not be using the 'download' page on
+the left. Follow the build instructions below.**
 
 Installing
 ----------
@@ -33,3 +36,9 @@ This version of PIDEtop, Coq-0.2.0, is known to work with the following versions
 
 ### PIDE
 - Version: Coq-0.2.0
+
+License
+-------
+
+This software is available under LGPL license version 2.1 or at your option the MIT/X license.
+
