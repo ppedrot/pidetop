@@ -172,14 +172,17 @@ let add task_queue exec_id tip edit_id text =
 
 let query at route_id query_id text =
   `Query (lazy (
-    let position = Position.id_only (Stateid.to_int query_id) in
-    status position status_running;
-    try Stm.query ~at:at ~report_with:(query_id,route_id) text
-    with e when Errors.noncritical e ->
-      let e = Errors.push e in
-      let msg = Pp.string_of_ppcmds (Errors.iprint e) in
-      prerr_endline msg))
-
+    match Stm.state_of_id at with
+    | `Expired -> ()
+    | `Valid _ ->
+      let position = Position.id_only (Stateid.to_int query_id) in
+      status position status_running;
+      try
+        Stm.query ~at:at ~report_with:(query_id,route_id) text
+      with e when Errors.noncritical e ->
+        let e = Errors.push e in
+        let msg = Pp.string_of_ppcmds (Errors.iprint e) in
+        prerr_endline msg))
 
 let get_queries cid at ov =
   List.fold_right (fun (oid, (command, args)) acc ->

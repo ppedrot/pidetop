@@ -48,7 +48,6 @@ let main_loop () =
            cur_tip := None;
            ignore(protect Stm.observe id)
         | `Observe, None -> ()
-        | `Query _, _ when !skipping -> ()
         | `Query f, _ -> Lazy.force f
         | `Add _, _ when !skipping -> ()
         | `Add f, _ ->
