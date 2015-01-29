@@ -23,9 +23,9 @@ module Make_printer(P: Printer_spec) = struct
 
   let print_func id route content =
     if can_print content then begin
-      let position = make_pos content id in
       match make_body id content with
       | Some body ->
+        let position = make_pos content id in
         if route = Feedback.default_route then
           (* Main result *)
           (output_function content) position (children body)
