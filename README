@@ -16,7 +16,7 @@ If you have installed Coq using Opam, you can use Opam to install pidetop:
 ```
 #!shell
 
-opam add repo pide http://bitbucket.org/coqpide/opam.git
+opam repo add pide http://bitbucket.org/coqpide/opam.git
 opam install pidetop
 ```
 
