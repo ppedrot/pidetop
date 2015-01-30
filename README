@@ -3,7 +3,9 @@ PIDEtop
 
 This repository provides sources for a toplevel plugin to make Coq speak the
 PIDE protocol. If you are looking for a release to go with PIDE, checkout the
-PIDEtop branch (the default branch of this repository).
+PIDEtop branch (the default branch of this repository). 
+
+The source code of version 0.2.0 can also be downloaded as an archive from the [downloads page](https://bitbucket.org/coqpide/pidetop/downloads) (Under the 'tags' tab).
 
 **Unless you are using Windows, you should not be using the 'download' page on
 the left. Follow the build instructions below.**
@@ -41,4 +43,3 @@ License
 -------
 
 This software is available under LGPL license version 2.1 or at your option the MIT/X license.
-
