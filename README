@@ -29,6 +29,8 @@ $ $COQBIN/coq_makefile -f Make > Makefile
 $ make install-toploop
 
 
+For Windows, we provide a [pre-compiled binary](https://bitbucket.org/coqpide/pidetop/downloads/pidetop-windows-0.2.0.zip), unpack the zip file in the toploop directory of the Coq installation directory (usually, C:\Coq\lib\toploop)
+
 Compatibility
 -------------
 
