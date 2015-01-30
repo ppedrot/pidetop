@@ -12,8 +12,14 @@ The source code of version 0.2.0 can also be downloaded as an archive from the [
 Installing
 ----------
 
-You can build this version of the toploop using Opam (using the Coq 8.5 repository), the instructions are in the [Opam repository](https://bitbucket.org/coqpide/opam)
+If you have installed Coq using Opam, you can use Opam to install pidetop:
 
+```
+#!shell
+
+opam add repo pide http://bitbucket.org/coqpide/opam.git
+opam install pidetop
+```
 
 Alternatively, building by hand from these sources is driven by coq_makefile and make
 
