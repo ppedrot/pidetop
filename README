@@ -12,7 +12,7 @@ The source code of version 0.2.0 can also be downloaded as an archive from the [
 Installing
 ----------
 
-You can build this version of the toploop using Opam (using the Coq 8.5 repository), the instructions are in the [https://bitbucket.org/coqpide/opam](Opam repository)
+You can build this version of the toploop using Opam (using the Coq 8.5 repository), the instructions are in the [Opam repository](https://bitbucket.org/coqpide/opam)
 
 
 Alternatively, building by hand from these sources is driven by coq_makefile and make
