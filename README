@@ -7,13 +7,12 @@ PIDEtop branch (the default branch of this repository).
 
 The source code of version 0.2.0 can also be downloaded as an archive from the [downloads page](https://bitbucket.org/coqpide/pidetop/downloads) (Under the 'tags' tab).
 
+**pidetop-0.2.0.zip contains a pre-compiled binary for Windows, not the source code.**
 
 Installing
 ----------
 
-You can build this version of the toploop using Opam (using the Coq 8.5 repository):
-
-$ opam install pidetop
+You can build this version of the toploop using Opam (using the Coq 8.5 repository), the instructions are in the [https://bitbucket.org/coqpide/opam](Opam repository)
 
 
 Alternatively, building by hand from these sources is driven by coq_makefile and make
