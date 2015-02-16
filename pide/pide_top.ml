@@ -44,10 +44,11 @@ let main_loop () =
            cur_tip := Some here;
            skipping := false;
            ignore(protect Stm.edit_at here)
-        | `Observe, Some id ->
+        | `Observe p, Some id ->
+           Stm.set_perspective p;
            cur_tip := None;
            ignore(protect Stm.observe id)
-        | `Observe, None -> ()
+        | `Observe p, None -> Stm.set_perspective p           
         | `Query f, _ -> Lazy.force f
         | `Add _, _ when !skipping -> ()
         | `Add f, _ ->

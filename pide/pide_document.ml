@@ -215,11 +215,7 @@ let set_overlay cid at ov: (exec_id * [`Query of unit lazy_t]) list =
 let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
     (fun (c: command_id) (acc: exec_id list) ->
-      if (List.mem_assoc c execs) then
-        match List.assoc c execs with
-        | [] -> acc
-        | es -> es @ acc
-      else acc)
+      if List.mem_assoc c execs then List.assoc c execs @ acc else acc)
     p
     []
 
@@ -275,17 +271,13 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
           else (id, [exec_id]) :: acc)
 
         new_computation' [] in
-      let command_execs =
-        List.map (fun (id, _) -> (id, [])) outdated_computation @
-        common_execs @ overlay_execs in
-      Queue.push `Observe tasks;
+      let command_execs = common_execs @ overlay_execs in
+      Queue.push (`Observe (to_exec_list perspective command_execs)) tasks;
       let updated_node =
-        match command_execs with
-        | [] -> []
-        | _  -> [(name,
-                  Node ((common @ new_computation'), perspective, overlay))]
+        if List.length command_execs + List.length outdated_computation = 0
+        then []
+        else [(name, Node ((common @ new_computation'), perspective, overlay))]
       in
-      Stm.set_perspective (to_exec_list perspective command_execs);
       (command_execs, updated_node)
     else
       [], [])
