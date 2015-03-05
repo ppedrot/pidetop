@@ -278,7 +278,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         then []
         else [(name, Node ((common @ new_computation'), perspective, overlay))]
       in
-      (command_execs, updated_node)
+      let cancel_outdated = List.map (fun (id, _) -> (id, [])) 
+        outdated_computation in
+      (cancel_outdated @ command_execs, updated_node)
     else
       [], [])
   in
