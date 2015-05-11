@@ -5,7 +5,7 @@ This repository provides sources for a toplevel plugin to make Coq speak the
 PIDE protocol. If you are looking for a release to go with PIDE, checkout the
 PIDEtop branch (the default branch of this repository). 
 
-The source code of version 0.2.0 can also be downloaded as an archive from the [downloads page](https://bitbucket.org/coqpide/pidetop/downloads) (Under the 'tags' tab).
+The source code can also be downloaded as an archive from the [downloads page](https://bitbucket.org/coqpide/pidetop/downloads) (Under the 'tags' tab).
 
 
 Installing
@@ -29,19 +29,19 @@ $ $COQBIN/coq_makefile -f Make > Makefile
 $ make install-toploop
 
 
-For Windows, we provide a [pre-compiled binary](https://bitbucket.org/coqpide/pidetop/downloads/pidetop-windows-0.2.0.zip), unpack the zip file in the toploop directory of the Coq installation directory (usually, C:\Coq\lib\toploop)
+For Windows, we provide a [pre-compiled binary](https://bitbucket.org/coqpide/pidetop/downloads/pidetop-windows-0.3.0.zip), unpack the zip file in the toploop directory of the Coq installation directory (usually, C:\Coq\lib\toploop)
 
 Compatibility
 -------------
 
-This version of PIDEtop, Coq-0.2.0, is known to work with the following versions of Coq and PIDE:
+This version of PIDEtop, Coq-0.3.0, is known to work with the following versions of Coq and PIDE:
 
 ### Coq
-- Version: 8.5beta1
+- Version: 8.5beta2
    
 
 ### PIDE
-- Version: Coq-0.2.0
+- Version: Coq-0.3.0
 
 License
 -------
