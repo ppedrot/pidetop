@@ -50,7 +50,7 @@ let initialize_commands () =
      List.iter (fun s -> writeln Position.none (Pide_xml.Encode.string s)) args);
 
   register_protocol_command "Document.discontinue_execution" (fun stmq _ ->
-(*    TQueue.clear stmq; *)
+    TQueue.clear stmq;
     Control.interrupt := true);
 
   register_protocol_command "Document.cancel_execution" (fun stmq _ ->
