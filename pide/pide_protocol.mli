@@ -7,7 +7,12 @@ val initialize : unit -> unit
  * react to messages by pre-installed (by initialize) hooks. 
  * The hooks dispatch their actions to the model maintained by the PIDE document module.
  *)
-type task = [ `Observe of Stateid.t list| `Add of Stateid.t option lazy_t | `EditAt of Stateid.t | `Query of unit lazy_t ]
+type task =
+  [ `Observe of Stateid.t list
+  | `Add of Stateid.t * int * string * Stateid.t ref
+  | `EditAt of Stateid.t
+  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string ]
+
 val loop : task TQueue.t -> unit
 
-val query_list : (Stateid.t * [`Query of unit lazy_t] list) list ref
+val query_list : (Stateid.t * [`Query of Stateid.t * Feedback.route_id * Stateid.t * string] list) list ref

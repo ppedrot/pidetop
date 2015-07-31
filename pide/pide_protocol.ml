@@ -4,7 +4,11 @@ open Coq_input
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
 
-type task = [ `Observe of Stateid.t list | `Add of Stateid.t option lazy_t | `EditAt of Stateid.t | `Query of unit lazy_t ]
+type task =
+  [ `Observe of Stateid.t list
+  | `Add of Stateid.t * int * string * Stateid.t ref
+  | `EditAt of Stateid.t
+  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string ]
 
 let commands =
   ref ([]: (string * (task TQueue.t -> string list -> unit)) list)

@@ -28,7 +28,7 @@ type overlay = (command_id * (string * (string list))) list
 (* Routing queries to instances. *)
 type perspective = command_id list
 
-type entries = (command_id * exec_id) list
+type entries = (command_id * exec_id * exec_id ref) list
 type node = Node of entries * perspective * overlay
 let empty_node = Node ([], [], [])
 
@@ -91,8 +91,8 @@ let update_node name f nodes =
 
 
 let insert_here id2 (entries: entries) =
-  if List.mem_assoc id2 entries then raise (Failure "Dup")
-  else (id2, Stateid.dummy) :: entries
+  if List.exists (fun (id,_,_) -> id = id2) entries then raise (Failure "Dup")
+  else (id2, Stateid.dummy, ref Stateid.dummy) :: entries
 
 let insert_after hook id2 (entries: entries) =
   match hook with
@@ -101,16 +101,16 @@ let insert_after hook id2 (entries: entries) =
       let rec insert l =
         match l with
         | [] -> raise (Failure "Undefined insert")
-        | (x, y) :: rest ->
-            if x = id1 then (x, y) :: insert_here id2 rest
-            else (x, y) :: insert rest
+        | (x, y, z) :: rest ->
+            if x = id1 then (x, y, z) :: insert_here id2 rest
+            else (x, y, z) :: insert rest
       in insert entries
 
 let remove_here (entries: entries) =
   match entries with
   | [] -> raise (Failure "Undef")
   | [_] -> []
-  | _ :: (x, _) :: rest -> (x, Stateid.dummy) :: rest
+  | _ :: (x, _,_) :: rest -> (x, Stateid.dummy, ref Stateid.dummy) :: rest
 
 let remove_after hook (entries: entries) =
   match hook with
@@ -119,9 +119,9 @@ let remove_after hook (entries: entries) =
       let rec remove l =
         match l with
         | [] -> raise (Failure "Undefined remove")
-        | (x, y) :: rest -> 
-            if x = id1 then (x, y) :: remove_here rest
-            else (x, y) :: remove rest
+        | (x, y,z) :: rest -> 
+            if x = id1 then (x, y,z) :: remove_here rest
+            else (x, y,z) :: remove rest
       in remove entries
 
 let edit_node (Node (entries, p, o)) edit =
@@ -152,39 +152,19 @@ let get_node nodes name =
 
 let rec chop_common (entries0 : entries) (entries1: entries) =
   match (entries0, entries1) with
-  | (x :: rest0, y :: rest1) when x = y ->
+  | ((x,_,_ as hd) :: rest0, (y,_,_) :: rest1) when x = y ->
       let (common', rest') = chop_common rest0 rest1 in
-      (x :: common', rest')
+      (hd :: common', rest')
   | _ -> ([], (entries0, entries1))
 
 
-let add task_queue exec_id tip edit_id text =
-  Queue.push (`Add (lazy (
-  let position = Position.id_only (Stateid.to_int exec_id) in
-  status position status_running;
-  try
-    ignore(Stm.add ~newtip:exec_id ~ontop:tip true edit_id text);
-    let ast = Stm.print_ast exec_id in
-    Coq_output.report (Position.id_only (Stateid.to_int exec_id)) [ast];
-    Some exec_id
-  with e when Errors.noncritical e ->
-    status position status_finished;
-    None))) task_queue;
-  exec_id
+let log = open_out "/tmp/log"
+
+let add task_queue exec_id tip_exec_id edit_id text =
+  Queue.push (`Add (exec_id, edit_id, text, tip_exec_id)) task_queue
 
 let query at route_id query_id text =
-  `Query (lazy (
-    match Stm.state_of_id at with
-    | `Expired -> ()
-    | `Valid _ ->
-      let position = Position.id_only (Stateid.to_int query_id) in
-      status position status_running;
-      try
-        Stm.query ~at:at ~report_with:(query_id,route_id) text
-      with e when Errors.noncritical e ->
-        let e = Errors.push e in
-        let msg = Pp.string_of_ppcmds (Errors.iprint e) in
-        prerr_endline msg))
+  `Query (at,route_id,query_id,text)
 
 let get_queries cid at ov =
   List.fold_right (fun (oid, (command, args)) acc ->
@@ -207,7 +187,7 @@ let emit_goal at =
     (* TODO: Factor this differently, hardcoded query... *)
     [eid, query at Feedback.default_route eid "PideFeedbackGoals."]
 
-let set_overlay cid at ov: (exec_id * [`Query of unit lazy_t]) list =
+let set_overlay cid at ov =
   let mandatory = emit_goal at in (* Queries that execute on all states *)
   let queries = get_queries cid at ov in
   mandatory @ queries
@@ -232,7 +212,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let (common, (outdated_computation, new_computation)) =
           chop_common old_entries entries in
         let common_execs = List.fold_right
-          (fun (id, exec_id) acc ->
+          (fun (id, exec_id, tip_exec_id) acc ->
             if List.mem id perspective then (
               let queries = set_overlay id exec_id overlay in
               let ids_queries = List.map fst queries in
@@ -242,26 +222,28 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
               else (id, exec_id :: ids_queries) :: acc)
             else acc
             ) common [] in
-        let tip =
+        let common_tip =
           if common = [] then !initial_state
-          else snd (CList.last (List.filter (fun (cid, _) ->
-              not (fst (the_command st cid)))
-            common)) in
-        Queue.push (`EditAt tip) tasks;
+          else
+            let not_ignored =
+              List.filter (fun (cid, _, _) ->
+                not (fst (the_command st cid)))
+              common in
+            !(Util.pi3 (CList.last not_ignored)) in
+        Queue.push (`EditAt common_tip) tasks;
 
-        let new_computation' = List.map
-          (fun (id, _) -> id, Stateid.fresh ())
+        let new_computation' = List.map (fun (cid, _,_) ->
+            let req_exec_id = Stateid.fresh () in
+            let tip_exec_id = ref req_exec_id in (* Stm.add may change it *)
+            cid, req_exec_id, tip_exec_id)
           new_computation in
 
-        ignore(List.fold_left
-          (fun curr_tip (cid, exec_id) ->
+        List.iter (fun (cid, exec_id, tip_exec_id) ->
             let (is_ignored, cmd_text) = the_command st cid in
-            if not is_ignored then add tasks exec_id curr_tip cid cmd_text
-            else curr_tip
-          )
-        tip new_computation');
+            if not is_ignored then add tasks exec_id tip_exec_id cid cmd_text
+          ) new_computation';
       let overlay_execs =
-        List.fold_right (fun (id, exec_id) acc ->
+        List.fold_right (fun (id, exec_id,_) acc ->
           if List.mem id perspective then (
             let queries = set_overlay id exec_id overlay in
             let ids_queries = List.map fst queries in
@@ -269,7 +251,6 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
             query_list := (exec_id, query_tasks) :: !query_list;
             (id, exec_id :: ids_queries):: acc)
           else (id, [exec_id]) :: acc)
-
         new_computation' [] in
       let command_execs = common_execs @ overlay_execs in
       Queue.push (`Observe (to_exec_list perspective command_execs)) tasks;
@@ -278,7 +259,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         then []
         else [(name, Node ((common @ new_computation'), perspective, overlay))]
       in
-      let cancel_outdated = List.map (fun (id, _) -> (id, [])) 
+      let cancel_outdated = List.map (fun (id, _,_) -> (id, [])) 
         outdated_computation in
       (cancel_outdated @ command_execs, updated_node)
     else

@@ -29,7 +29,7 @@ type edit = string * node_edit
 val define_command: command_id -> bool -> string -> state -> state
 
 val update: version_id -> version_id -> edit list -> state ->
-  (command_id * exec_id list) list * (Pide_protocol.task Queue.t * (exec_id * [ `Query of unit lazy_t ] list) list) * state
+  (command_id * exec_id list) list * (Pide_protocol.task Queue.t * (exec_id * [ `Query of exec_id * Feedback.route_id * Stateid.t * string ] list) list) * state
 
 val remove_versions: version_id list -> state -> state
 
