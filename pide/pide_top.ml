@@ -69,7 +69,8 @@ while true do
            skipping := true
   with
   | Sys.Break -> ()
-  | e -> prerr_endline ("An exception has escaped: "^
+  | e -> prerr_endline ("An exception has escaped while processing: "^
+       Pide_protocol.string_of_task task^"\n"^ 
            Pp.string_of_ppcmds (Errors.print e))
 done
 ;;

@@ -10,6 +10,14 @@ type task =
   | `EditAt of Stateid.t
   | `Query of Stateid.t * Feedback.route_id * Stateid.t * string ]
 
+let string_of_task = function
+  | `Observe il -> "Observe: " ^ String.concat "," (List.map Stateid.to_string il)
+  | `Add (s,e,t,_) -> "Add: " ^ Stateid.to_string s ^ "," ^ string_of_int e ^ ": " ^ t
+  | `EditAt id -> "EditAt: " ^ Stateid.to_string id
+  | `Query (id1,route,id2,s) ->
+       "Query: " ^ Stateid.to_string id1 ^ " " ^
+       string_of_int route ^ " " ^ Stateid.to_string id2 ^ " " ^ s
+
 let commands =
   ref ([]: (string * (task TQueue.t -> string list -> unit)) list)
 

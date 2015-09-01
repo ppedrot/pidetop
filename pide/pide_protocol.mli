@@ -13,6 +13,8 @@ type task =
   | `EditAt of Stateid.t
   | `Query of Stateid.t * Feedback.route_id * Stateid.t * string ]
 
+val string_of_task : task -> string
+
 val loop : task TQueue.t -> unit
 
 val query_list : (Stateid.t * [`Query of Stateid.t * Feedback.route_id * Stateid.t * string] list) list ref
