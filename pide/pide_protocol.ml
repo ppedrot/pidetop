@@ -104,7 +104,7 @@ let initialize () =
 
 let rec loop stmq =
   (try match read_command () with
-  | None -> ()
+  | None -> exit 1
   | Some [] -> error_msg Position.none
     (Pide_xml.Encode.string "Coq process: no input")
   | Some (name :: args) ->
