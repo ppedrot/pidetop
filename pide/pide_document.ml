@@ -100,7 +100,8 @@ let insert_after hook id2 (entries: entries) =
   | Some id1 -> 
       let rec insert l =
         match l with
-        | [] -> raise (Failure "Undefined insert")
+        | [] -> raise (Failure ("insertion failed: hook " ^
+                                (string_of_int id1) ^ " was not found"))
         | (x, y, z) :: rest ->
             if x = id1 then (x, y, z) :: insert_here id2 rest
             else (x, y, z) :: insert rest
@@ -118,7 +119,8 @@ let remove_after hook (entries: entries) =
   | Some id1 ->
       let rec remove l =
         match l with
-        | [] -> raise (Failure "Undefined remove")
+        | [] -> raise (Failure ("removal failed: hook " ^
+                                (string_of_int id1) ^ " was not found"))
         | (x, y,z) :: rest -> 
             if x = id1 then (x, y,z) :: remove_here rest
             else (x, y,z) :: remove rest
