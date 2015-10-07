@@ -60,10 +60,7 @@ while true do
            let tip, _ =
              Stm.add ~newtip:exec_id ~ontop:tip true edit_id text in
            tip_exec_id := tip;
-           let ast = Stm.print_ast exec_id in
-           Coq_output.report
-             (Position.id_only (Stateid.to_int exec_id)) [ast];
-           cur_tip := Some tip
+           cur_tip := Some tip;
          with e when Errors.noncritical e ->
            Coq_output.status position Coq_markup.status_finished;
            skipping := true
