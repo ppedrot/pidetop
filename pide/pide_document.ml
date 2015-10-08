@@ -32,8 +32,8 @@ type entries = (command_id * exec_id * exec_id ref) list
 type node = Node of entries * perspective * overlay
 let empty_node = Node ([], [], [])
 
-type version = Version of (string * node) list
-let empty_version = Version []
+type version = Version of (Pide_protocol.transaction_outcome ref * (string * node) list)
+let empty_version = Version (ref `FullyCommitted, [])
 
 type state =
   State of (version_id * version) list * (command_id * (bool * string)) list
@@ -135,9 +135,9 @@ let edit_node (Node (entries, p, o)) edit =
 let set_perspective (Node (entries, _, _)) perspective overlay =
   Node (entries, perspective, overlay)
 
-let edit_nodes (Version nodes) (name, node_edit) =
+let edit_nodes (Version (outcome, nodes)) (name, node_edit) =
   Version 
-    (match node_edit with
+    (ref `NotCommitted, match node_edit with
       | Edits edits ->
           update_node name (fun x -> List.fold_left edit_node x edits) nodes
       | Perspective (commands, overlay) ->
@@ -145,8 +145,8 @@ let edit_nodes (Version nodes) (name, node_edit) =
               set_perspective n commands overlay) nodes
     )
 
-let put_node (Version nodes) (name, node) =
-  Version ((name, node) :: List.remove_assoc name nodes)
+let put_node (Version (outcome, nodes)) (name, node) =
+  Version (outcome, (name, node) :: List.remove_assoc name nodes)
 
 let get_node nodes name =
   try List.assoc name nodes
@@ -203,8 +203,8 @@ let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
 
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
-  let Version old_nodes as old_version = the_version st v_old in
-  let Version new_nodes as new_version = List.fold_left edit_nodes old_version edits in
+  let Version (_, old_nodes) as old_version = the_version st v_old in
+  let Version (_, new_nodes) as new_version = List.fold_left edit_nodes old_version edits in
   let tasks = Queue.create () in
   let query_list = ref [] in
   let updated =
