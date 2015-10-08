@@ -13,8 +13,12 @@ module Error_printer: (Pide_printer.Printer_spec) = struct
 
   let make_body _ = function
     | Feedback.ErrorMsg (loc, txt) ->
-        Some (Xml_datatype.Element(Coq_markup.errorN, [],
-          Pide_xml.Encode.string txt))
+        if Str.string_match (Str.regexp "^[\t\r\n ]*User interrupt\\.") txt 0
+        then
+          None
+        else
+          Some (Xml_datatype.Element(Coq_markup.errorN, [],
+            Pide_xml.Encode.string txt))
     | _ -> raise Pide_printer.Unhandled
 end
 
