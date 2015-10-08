@@ -3,6 +3,11 @@
  *)
 val initialize : unit -> unit
 
+type transaction_outcome =
+  [ `NotCommitted
+  | `CommittedUpTo of int
+  | `FullyCommitted ]
+
 (* Run the PIDE protocol. This is the main loop for the PIDE layer: it will 
  * react to messages by pre-installed (by initialize) hooks. 
  * The hooks dispatch their actions to the model maintained by the PIDE document module.

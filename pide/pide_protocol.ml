@@ -4,6 +4,11 @@ open Coq_input
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
 
+type transaction_outcome =
+  [ `NotCommitted
+  | `CommittedUpTo of int
+  | `FullyCommitted ]
+
 type task =
   [ `Observe of Stateid.t list
   | `Add of Stateid.t * int * string * Stateid.t ref
