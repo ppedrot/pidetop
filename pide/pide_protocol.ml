@@ -13,15 +13,22 @@ type task =
   [ `Observe of Stateid.t list
   | `Add of Stateid.t * int * string * Stateid.t ref
   | `EditAt of Stateid.t
-  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string ]
+  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
+  | `Bless of int * (transaction_outcome ref)]
 
 let string_of_task = function
-  | `Observe il -> "Observe: " ^ String.concat "," (List.map Stateid.to_string il)
-  | `Add (s,e,t,_) -> "Add: " ^ Stateid.to_string s ^ "," ^ string_of_int e ^ ": " ^ t
-  | `EditAt id -> "EditAt: " ^ Stateid.to_string id
+  | `Observe il ->
+    "`Observe [" ^ String.concat "; " (List.map Stateid.to_string il) ^ "]"
+  | `Add (s,e,t,_) ->
+    "`Add (" ^ Stateid.to_string s ^ ", " ^ string_of_int e ^ ", " ^ t ^ ", _)"
+  | `EditAt id ->
+    "`EditAt (" ^ Stateid.to_string id ^ ")"
   | `Query (id1,route,id2,s) ->
-       "Query: " ^ Stateid.to_string id1 ^ " " ^
-       string_of_int route ^ " " ^ Stateid.to_string id2 ^ " " ^ s
+    "`Query (" ^ Stateid.to_string id1 ^ ", " ^
+                   string_of_int route ^ ", " ^
+                 Stateid.to_string id2 ^ ", " ^ s ^ ")"
+  | `Bless (id, good) ->
+    "`Bless (" ^ string_of_int id ^ ", _)"
 
 let commands =
   ref ([]: (string * (task TQueue.t -> string list -> unit)) list)
