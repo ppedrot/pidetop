@@ -4,8 +4,10 @@ let () = Coqtop.toploop_init := (fun args ->
   Flags.async_proofs_never_reopen_branch := true;
   Flags.async_proofs_full := true;
   Hook.set Stm.unreachable_state_hook
-    (fun id ->
-      Pp.feedback ~state_id:id Feedback.Processed);
+    (fun id (e, info) ->
+      match e with
+        | Sys.Break -> ()
+        | _ -> Pp.feedback ~state_id:id Feedback.Processed);
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
   Flags.async_proofs_flags_for_workers := ["-feedback-glob"];

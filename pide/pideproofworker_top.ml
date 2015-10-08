@@ -14,5 +14,7 @@ let () = Coqtop.toploop_run := W.main_loop
  *)
 let () = 
   Hook.set Stm.unreachable_state_hook
-    (fun id ->
-      Pp.feedback ~state_id:id Feedback.Processed)
+    (fun id (e, info) ->
+      match e with
+        | Sys.Break -> ()
+        | _ -> Pp.feedback ~state_id:id Feedback.Processed)
