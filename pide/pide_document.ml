@@ -48,7 +48,7 @@ let define_version id version (State (versions, commands)) =
     else (id, version) :: versions
   in State (versions', commands) (* TODO... *)
 
-
+(* XXX TODO XXX: we mustn't remove the most recent good version *)
 let remove_version (id: version_id) (State (versions, commands)) =
   let versions' =
     if not (List.mem_assoc id versions) then raise (Failure "Does not exist")
@@ -58,8 +58,11 @@ let remove_version (id: version_id) (State (versions, commands)) =
 let remove_versions (ids: version_id list) (s: state) =
   List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
 
-let the_version (State (versions, _)) (id: version_id) =
-  List.assoc id versions
+let the_last_good_version (State (versions, _)) (id: version_id) =
+  CList.find_map (fun (id', Version (outcome, the_stuff)) ->
+    if id' >= id && !outcome <> `NotCommitted then
+      Some (id', Version (outcome, the_stuff))
+    else None) versions
 
 let the_command (State (_, commands)) (id: command_id) : (bool * string) =
   List.assoc id commands
@@ -152,10 +155,10 @@ let get_node nodes name =
   try List.assoc name nodes
   with Not_found -> empty_node
 
-let rec chop_common (entries0 : entries) (entries1: entries) =
+let rec chop_common (entries0 : entries) (up_to : Pide_protocol.transaction_outcome) (entries1: entries) =
   match (entries0, entries1) with
-  | ((x,_,_ as hd) :: rest0, (y,_,_) :: rest1) when x = y ->
-      let (common', rest') = chop_common rest0 rest1 in
+  | ((x,_,_ as hd) :: rest0, (y,_,_) :: rest1) when x = y && up_to <> `CommittedUpTo x ->
+      let (common', rest') = chop_common rest0 up_to rest1 in
       (hd :: common', rest')
   | _ -> ([], (entries0, entries1))
 
@@ -203,8 +206,8 @@ let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
 
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
-  let Version (_, old_nodes) as old_version = the_version st v_old in
-  let Version (_, new_nodes) as new_version = List.fold_left edit_nodes old_version edits in
+  let (v_old, (Version (old_outcome, old_nodes) as old_version)) = the_last_good_version st v_old in
+  let Version (outcome, new_nodes) as new_version = List.fold_left edit_nodes old_version edits in
   let tasks = Queue.create () in
   let query_list = ref [] in
   let updated =
@@ -212,7 +215,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
       if List.mem_assoc name edits then
         let Node (old_entries, _, _) = get_node old_nodes name in
         let (common, (outdated_computation, new_computation)) =
-          chop_common old_entries entries in
+          chop_common old_entries !old_outcome entries in
         let common_execs = List.fold_right
           (fun (id, exec_id, tip_exec_id) acc ->
             if List.mem id perspective then (
@@ -255,7 +258,6 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
           else (id, [exec_id]) :: acc)
         new_computation' [] in
       let command_execs = common_execs @ overlay_execs in
-      Queue.push (`Observe (to_exec_list perspective command_execs)) tasks;
       let updated_node =
         if List.length command_execs + List.length outdated_computation = 0
         then []
@@ -263,9 +265,13 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
       in
       let cancel_outdated = List.map (fun (id, _,_) -> (id, [])) 
         outdated_computation in
-      (cancel_outdated @ command_execs, updated_node)
-    else
-      [], [])
+      let assignment = cancel_outdated @ command_execs in
+      Queue.push (`Bless (v_new, outcome)) tasks;
+      Queue.push (`Observe (to_exec_list perspective command_execs)) tasks;
+      (assignment, updated_node)
+    else begin
+      Queue.push (`Bless (v_new, outcome)) tasks;
+      [], [] end)
   in
   let command_execs = List.flatten (List.map fst updated) in
   let updated_nodes = List.flatten (List.map snd updated) in

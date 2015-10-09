@@ -69,17 +69,15 @@ let set_queries stmq queries =
   query_list := [];
   List.iter (set_queries_of_exec stmq) queries
 
+let abort_transaction stmq _ =
+  Control.interrupt := true
+
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
      List.iter (fun s -> writeln Position.none (Pide_xml.Encode.string s)) args);
 
-  register_protocol_command "Document.discontinue_execution" (fun stmq _ ->
-    TQueue.clear stmq;
-    Control.interrupt := true);
-
-  register_protocol_command "Document.cancel_execution" (fun stmq _ ->
-    TQueue.clear stmq;
-    Control.interrupt := true);
+  register_protocol_command "Document.discontinue_execution" abort_transaction;
+  register_protocol_command "Document.cancel_execution" abort_transaction;
 
   register_protocol_command "Document.define_command" (fun stmq args ->
     match args with
@@ -101,8 +99,8 @@ let initialize_commands () =
         Pide_document.change_state (fun state ->
           let (assignment, tasks, state') =
             Pide_document.update old_id new_id edits state in
-          assignment_message new_id assignment;
           let (document_updates, query_tasks) = tasks in
+          assignment_message new_id assignment;
           new_transaction := document_updates;
           queries := query_tasks;
           state');

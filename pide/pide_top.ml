@@ -31,42 +31,67 @@ let protect f arg =
   prerr_endline msg;
   None
 
+type consumer_mode =
+  | Everything
+  | QueriesOnly (* and `Observe, and `Bless... *)
+  | Nothing
+
 let consumer_thread () =
   let cur_tip = ref None in
-  let skipping = ref false in
+  let last_edit_id = ref None in
+  let mode = ref Everything in
+  let current_document = ref (Stm.backup ()) in
 while true do
   let task = TQueue.pop stm_queue in
   try
     match task, !cur_tip with
     | `EditAt here, _ ->
+       Stm.restore !current_document;
        cur_tip := Some here;
-       skipping := false;
+       mode := Everything;
+       last_edit_id := None;
+       Control.interrupt := false;
        ignore(protect Stm.edit_at here)
     | `Observe p, Some id ->
        Stm.set_perspective p;
        cur_tip := None;
        ignore(protect Stm.observe id)
-    | `Observe p, None -> Stm.set_perspective p           
-    | `Query (at,route_id,query_id,text), _ ->
+    | `Observe p, None -> Stm.set_perspective p
+    | `Query (at,route_id,query_id,text), _ when !mode <> Nothing ->
          if Stm.state_of_id at <> `Expired then
            let position = Position.id_only (Stateid.to_int query_id) in
            Coq_output.status position Coq_markup.status_running;
            ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text)
-    | `Add _, _ when !skipping -> ()
+    | `Query _, _ -> ()
+    | `Add _, _ when !mode <> Everything -> ()
     | `Add _, None -> assert false
     | `Add (exec_id, edit_id, text, tip_exec_id), Some tip ->
          let position = Position.id_only (Stateid.to_int exec_id) in
          Coq_output.status position Coq_markup.status_running;
-         try
+         (try
+           last_edit_id := Some edit_id;
            let tip, _ =
              Stm.add ~newtip:exec_id ~ontop:tip true edit_id text in
            tip_exec_id := tip;
            cur_tip := Some tip;
          with e when Errors.noncritical e ->
-           Coq_output.status position Coq_markup.status_finished;
-           skipping := true
+           Pp.feedback ~state_id:exec_id Feedback.Processed;
+           mode := QueriesOnly)
+    | `Bless (new_id, outcome), _ ->
+        outcome :=
+          if !mode = Everything then
+            `FullyCommitted
+          else if !last_edit_id <> None then
+            `CommittedUpTo (Option.get !last_edit_id)
+          else
+            `NotCommitted;
+        current_document := Stm.backup ()
   with
-  | Sys.Break -> ()
+  | Sys.Break ->
+    (* This is how we receive discontinue_execution messages from the other
+       thread; in that case, we don't discontinue execution as much as we
+       ignore all the execution we still have to do *)
+    mode := Nothing
   | e -> prerr_endline ("An exception has escaped while processing: "^
        Pide_protocol.string_of_task task^"\n"^ 
            Pp.string_of_ppcmds (Errors.print e))
