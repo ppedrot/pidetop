@@ -37,7 +37,6 @@ let consumer_thread () =
 while true do
   let task = TQueue.pop stm_queue in
   try
-    Control.interrupt := false;
     match task, !cur_tip with
     | `EditAt here, _ ->
        cur_tip := Some here;
