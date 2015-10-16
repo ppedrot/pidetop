@@ -41,7 +41,7 @@ module Glob_printer : Pide_printer.Printer_spec = struct
     | "mod" | "modtype" -> Module
     | "tac" -> TacticDefinition
     | "sec" -> Section
-    | s -> invalid_arg ("type_of_string:" ^ s)
+    | _ -> Variable
 
   module S = struct type t = entry_type * string * string let compare = compare end
   module M = CMap.Make(S)
