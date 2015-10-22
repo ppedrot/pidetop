@@ -63,6 +63,8 @@ let the_last_good_version (State (versions, _)) (id: version_id) =
     if id' >= id && !outcome <> `NotCommitted then
       Some (id', Version (outcome, the_stuff))
     else None) versions
+let the_version (State (versions, _)) (id: version_id) =
+  List.assoc id versions
 
 let the_command (State (_, commands)) (id: command_id) : (bool * string) =
   List.assoc id commands
@@ -206,8 +208,10 @@ let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
 
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
-  let (v_old, (Version (old_outcome, old_nodes) as old_version)) = the_last_good_version st v_old in
-  let Version (outcome, new_nodes) as new_version = List.fold_left edit_nodes old_version edits in
+  let (v_old, Version (old_outcome, old_nodes)) = the_last_good_version st v_old in
+  let Version (outcome, new_nodes) as new_version =
+    let old_version = the_version st v_old in
+    List.fold_left edit_nodes old_version edits in
   let tasks = Queue.create () in
   let query_list = ref [] in
   let updated =
