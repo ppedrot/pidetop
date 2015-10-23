@@ -36,6 +36,16 @@ type consumer_mode =
   | QueriesOnly (* and `Observe, and `Bless... *)
   | Nothing
 
+let string_of_mode m = match m with
+  | Everything -> "Everything"
+  | QueriesOnly -> "QueriesOnly"
+  | Nothing -> "Nothing"
+
+let log = if !Flags.debug then Some (open_out "/tmp/pide_top.log") else None
+let writelog s = match log with
+  | Some f -> Printf.fprintf f "%s\n%!" s
+  | _ -> ()
+
 let consumer_thread () =
   let cur_tip = ref None in
   let last_edit_id = ref None in
@@ -43,7 +53,10 @@ let consumer_thread () =
   let current_document = ref (Stm.backup ()) in
 while true do
   let task = TQueue.pop stm_queue in
-  try
+  let old_mode = !mode in
+  writelog (Pide_protocol.string_of_task task);
+  writelog (Printf.sprintf "\tbegin %f" (Unix.gettimeofday ()));
+  (try
     match task, !cur_tip with
     | `EditAt here, _ ->
        Stm.restore !current_document;
@@ -85,6 +98,8 @@ while true do
             `CommittedUpTo (Option.get !last_edit_id)
           else
             `NotCommitted;
+        writelog (Printf.sprintf "\t\toutcome for %d is %s" new_id
+                      (Pide_protocol.string_of_outcome !outcome));
         current_document := Stm.backup ()
   with
   | Sys.Break ->
@@ -94,7 +109,11 @@ while true do
     mode := Nothing
   | e -> prerr_endline ("An exception has escaped while processing: "^
        Pide_protocol.string_of_task task^"\n"^ 
-           Pp.string_of_ppcmds (Errors.print e))
+           Pp.string_of_ppcmds (Errors.print e)));
+  writelog (Printf.sprintf "\tend %f" (Unix.gettimeofday ()));
+  if old_mode <> !mode then
+    writelog (Printf.sprintf "state change: %s -> %s"
+                  (string_of_mode old_mode) (string_of_mode !mode))
 done
 ;;
 
