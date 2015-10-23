@@ -8,6 +8,8 @@ type transaction_outcome =
   | `CommittedUpTo of int
   | `FullyCommitted ]
 
+val string_of_outcome : transaction_outcome -> string
+
 (* Run the PIDE protocol. This is the main loop for the PIDE layer: it will 
  * react to messages by pre-installed (by initialize) hooks. 
  * The hooks dispatch their actions to the model maintained by the PIDE document module.

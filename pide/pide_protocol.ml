@@ -9,6 +9,11 @@ type transaction_outcome =
   | `CommittedUpTo of int
   | `FullyCommitted ]
 
+let string_of_outcome o = match o with
+  | `NotCommitted -> "`NotCommitted"
+  | `CommittedUpTo i -> "`CommittedUpTo " ^ (string_of_int i)
+  | `FullyCommitted -> "`FullyCommitted"
+
 type task =
   [ `Observe of Stateid.t list
   | `Add of Stateid.t * int * string * Stateid.t ref
