@@ -4,39 +4,8 @@ open Coq_input
 (* Helper function. *)
 let quote s = "\"" ^ s ^ "\""
 
-type transaction_outcome =
-  [ `NotCommitted
-  | `CommittedUpTo of int
-  | `FullyCommitted ]
-
-let string_of_outcome o = match o with
-  | `NotCommitted -> "`NotCommitted"
-  | `CommittedUpTo i -> "`CommittedUpTo " ^ (string_of_int i)
-  | `FullyCommitted -> "`FullyCommitted"
-
-type task =
-  [ `Observe of Stateid.t list
-  | `Add of Stateid.t * int * string * Stateid.t ref
-  | `EditAt of Stateid.t
-  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
-  | `Bless of int * (transaction_outcome ref)]
-
-let string_of_task = function
-  | `Observe il ->
-    "`Observe [" ^ String.concat "; " (List.map Stateid.to_string il) ^ "]"
-  | `Add (s,e,t,_) ->
-    "`Add (" ^ Stateid.to_string s ^ ", " ^ string_of_int e ^ ", " ^ t ^ ", _)"
-  | `EditAt id ->
-    "`EditAt (" ^ Stateid.to_string id ^ ")"
-  | `Query (id1,route,id2,s) ->
-    "`Query (" ^ Stateid.to_string id1 ^ ", " ^
-                   string_of_int route ^ ", " ^
-                 Stateid.to_string id2 ^ ", " ^ s ^ ")"
-  | `Bless (id, good) ->
-    "`Bless (" ^ string_of_int id ^ ", _)"
-
 let commands =
-  ref ([]: (string * (task TQueue.t -> string list -> unit)) list)
+  ref ([]: (string * (Pide_document.task TQueue.t -> string list -> unit)) list)
 
 let register_protocol_command name cmd = commands := (name, cmd) :: !commands
 
@@ -66,7 +35,7 @@ let in_cache eid =
 
 let set_queries_of_exec stmq (exec_id, queries) =
   if in_cache exec_id then
-    List.iter (fun query -> TQueue.push stmq (query :> task)) queries
+    List.iter (fun query -> TQueue.push stmq (query :> Pide_document.task)) queries
   else
       query_list :=  (exec_id, queries) :: !query_list
 

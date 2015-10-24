@@ -1,3 +1,24 @@
+type transaction_outcome =
+  [ `NotCommitted
+  | `CommittedUpTo of int
+  | `FullyCommitted ]
+
+val string_of_outcome : transaction_outcome -> string
+
+(* Run the PIDE protocol. This is the main loop for the PIDE layer: it will 
+ * react to messages by pre-installed (by initialize) hooks. 
+ * The hooks dispatch their actions to the model maintained by the PIDE document module.
+ *)
+type task =
+  [ `Observe of Stateid.t list
+  | `Add of Stateid.t * int * string * Stateid.t ref
+  | `EditAt of Stateid.t
+  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
+  | `Bless of int * (transaction_outcome ref)]
+
+val string_of_task : task -> string
+
+
 type id = int
 type command_id = id
 type version_id = id
@@ -29,7 +50,7 @@ type edit = string * node_edit
 val define_command: command_id -> bool -> string -> state -> state
 
 val update: version_id -> version_id -> edit list -> state ->
-  (command_id * exec_id list) list * (Pide_protocol.task Queue.t * (exec_id * [ `Query of exec_id * Feedback.route_id * Stateid.t * string ] list) list) * state
+  (command_id * exec_id list) list * (task Queue.t * (exec_id * [ `Query of exec_id * Feedback.route_id * Stateid.t * string ] list) list) * state
 
 val remove_versions: version_id list -> state -> state
 

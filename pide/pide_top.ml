@@ -18,7 +18,7 @@ let stm_queue = TQueue.create ()
 let () = Hook.set Stm.state_ready_hook (fun stateid ->
   try
     let queries = List.assoc stateid !Pide_protocol.query_list in
-    List.iter (fun query -> TQueue.push stm_queue (query :> Pide_protocol.task))
+    List.iter (fun query -> TQueue.push stm_queue (query :> Pide_document.task))
       queries
   with Not_found -> ()
 )
@@ -54,11 +54,12 @@ let consumer_thread () =
 while true do
   let task = TQueue.pop stm_queue in
   let old_mode = !mode in
-  writelog (Pide_protocol.string_of_task task);
+  writelog (Pide_document.string_of_task task);
   writelog (Printf.sprintf "\tbegin %f" (Unix.gettimeofday ()));
   (try
     match task, !cur_tip with
     | `EditAt here, _ ->
+                    Unix.sleep 1;
        Stm.restore !current_document;
        cur_tip := Some here;
        mode := Everything;
@@ -99,7 +100,7 @@ while true do
           else
             `NotCommitted;
         writelog (Printf.sprintf "\t\toutcome for %d is %s" new_id
-                      (Pide_protocol.string_of_outcome !outcome));
+                      (Pide_document.string_of_outcome !outcome));
         current_document := Stm.backup ()
   with
   | Sys.Break ->
@@ -108,7 +109,7 @@ while true do
        ignore all the execution we still have to do *)
     mode := Nothing
   | e -> prerr_endline ("An exception has escaped while processing: "^
-       Pide_protocol.string_of_task task^"\n"^ 
+       Pide_document.string_of_task task^"\n"^ 
            Pp.string_of_ppcmds (Errors.print e)));
   writelog (Printf.sprintf "\tend %f" (Unix.gettimeofday ()));
   if old_mode <> !mode then

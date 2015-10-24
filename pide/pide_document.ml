@@ -2,6 +2,37 @@ open Coq_messages
 open Coq_output
 open Coq_markup
 
+type transaction_outcome =
+  [ `NotCommitted
+  | `CommittedUpTo of int
+  | `FullyCommitted ]
+
+let string_of_outcome o = match o with
+  | `NotCommitted -> "`NotCommitted"
+  | `CommittedUpTo i -> "`CommittedUpTo " ^ (string_of_int i)
+  | `FullyCommitted -> "`FullyCommitted"
+
+type task =
+  [ `Observe of Stateid.t list
+  | `Add of Stateid.t * int * string * Stateid.t ref
+  | `EditAt of Stateid.t
+  | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
+  | `Bless of int * (transaction_outcome ref)]
+
+let string_of_task = function
+  | `Observe il ->
+    "`Observe [" ^ String.concat "; " (List.map Stateid.to_string il) ^ "]"
+  | `Add (s,e,t,_) ->
+    "`Add (" ^ Stateid.to_string s ^ ", " ^ string_of_int e ^ ", " ^ t ^ ", _)"
+  | `EditAt id ->
+    "`EditAt (" ^ Stateid.to_string id ^ ")"
+  | `Query (id1,route,id2,s) ->
+    "`Query (" ^ Stateid.to_string id1 ^ ", " ^
+                   string_of_int route ^ ", " ^
+                 Stateid.to_string id2 ^ ", " ^ s ^ ")"
+  | `Bless (id, good) ->
+    "`Bless (" ^ string_of_int id ^ ", _)"
+
 type id = int
 type version_id = id
 type command_id = id
@@ -32,7 +63,7 @@ type entries = (command_id * exec_id * exec_id ref) list
 type node = Node of entries * perspective * overlay
 let empty_node = Node ([], [], [])
 
-type version = Version of (Pide_protocol.transaction_outcome ref * (string * node) list)
+type version = Version of (transaction_outcome ref * (string * node) list)
 let empty_version = Version (ref `FullyCommitted, [])
 
 type state =
@@ -157,7 +188,7 @@ let get_node nodes name =
   try List.assoc name nodes
   with Not_found -> empty_node
 
-let rec chop_common (entries0 : entries) (up_to : Pide_protocol.transaction_outcome) (entries1: entries) =
+let rec chop_common (entries0 : entries) (up_to : transaction_outcome) (entries1: entries) =
   match (entries0, entries1) with
   | ((x,_,_ as hd) :: rest0, (y,_,_) :: rest1) when x = y && up_to <> `CommittedUpTo x ->
       let (common', rest') = chop_common rest0 up_to rest1 in
