@@ -59,7 +59,6 @@ while true do
   (try
     match task, !cur_tip with
     | `EditAt here, _ ->
-                    Unix.sleep 1;
        Stm.restore !current_document;
        cur_tip := Some here;
        mode := Everything;
