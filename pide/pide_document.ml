@@ -237,6 +237,33 @@ let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
     p
     []
 
+let entry_to_id e = match e with
+  | (command_id, _, _) -> string_of_int command_id
+
+let string_of_node (p : (string * node)) = match p with
+  | (filename, Node (entries, perspective, overlay)) ->
+    Printf.sprintf "%s -> [%s]" filename
+      (String.concat "; " (List.map entry_to_id entries))
+
+let string_of_version v = match v with
+  | Version (outcome, nodes) ->
+    Printf.sprintf "Version(outcome = %s, nodes = [%s])"
+        (string_of_outcome !outcome)
+        (String.concat "; " (List.map string_of_node nodes))
+
+let string_of_command s = match s with
+  | (command_id, _) -> string_of_int command_id
+
+let string_of_vid_p p = match p with
+  | (version_id, version) ->
+    Printf.sprintf "%d -> %s" version_id (string_of_version version)
+
+let string_of_state s = match s with
+  | State (versions, commands) ->
+    Printf.sprintf "State(versions = [%s], commands = [%s])"
+      (String.concat "; " (List.map string_of_vid_p versions))
+      (String.concat "; " (List.map string_of_command commands))
+
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
   let (v_old, Version (old_outcome, old_nodes)) = the_last_good_version st v_old in
