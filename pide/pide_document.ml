@@ -244,13 +244,23 @@ let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
     p
     []
 
+let abbreviate_list l stringise = match l with
+  | [] -> "[]"
+  | hd :: [] -> Printf.sprintf "[%s]" (stringise hd)
+  | hd :: tl :: [] -> Printf.sprintf "[%s; %s]" (stringise hd) (stringise tl)
+  | hd :: tl ->
+    let rev = List.rev tl in
+    let last = List.hd rev in
+    Printf.sprintf "[%s; (... %d item(s) omitted...); %s]"
+        (stringise hd) ((List.length rev) - 1) (stringise last)
+
 let entry_to_id e = match e with
   | (command_id, _, _) -> string_of_int command_id
 
 let string_of_node (p : (string * node)) = match p with
   | (filename, Node (entries, perspective, overlay)) ->
-    Printf.sprintf "%s -> [%s]" filename
-      (String.concat "; " (List.map entry_to_id entries))
+    Printf.sprintf "%s -> %s" filename
+        (abbreviate_list entries entry_to_id)
 
 let string_of_version v = match v with
   | Version (outcome, nodes) ->
@@ -267,9 +277,9 @@ let string_of_vid_p p = match p with
 
 let string_of_state s = match s with
   | State (versions, commands) ->
-    Printf.sprintf "State(versions = [%s], commands = [%s])"
+    Printf.sprintf "State(versions = %s, commands = %s)"
       (String.concat "; " (List.map string_of_vid_p versions))
-      (String.concat "; " (List.map string_of_command commands))
+      (abbreviate_list commands string_of_command)
 
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
