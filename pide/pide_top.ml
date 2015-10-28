@@ -107,9 +107,11 @@ while true do
        thread; in that case, we don't discontinue execution as much as we
        ignore all the execution we still have to do *)
     mode := Nothing
-  | e -> prerr_endline ("An exception has escaped while processing: "^
-       Pide_document.string_of_task task^"\n"^ 
-           Pp.string_of_ppcmds (Errors.print e)));
+  | e ->
+    let desc = Pp.string_of_ppcmds (Errors.print e) in
+    prerr_endline ("An exception has escaped while processing: "^
+        Pide_document.string_of_task task^"\n" ^ desc);
+    writelog (Printf.sprintf "\texception:\n%s" desc));
   writelog (Printf.sprintf "\tend %f" (Unix.gettimeofday ()));
   if old_mode <> !mode then
     writelog (Printf.sprintf "state change: %s -> %s"
