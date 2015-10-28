@@ -79,16 +79,6 @@ let define_version id version (State (versions, commands)) =
     else (id, version) :: versions
   in State (versions', commands) (* TODO... *)
 
-(* XXX TODO XXX: we mustn't remove the most recent good version *)
-let remove_version (id: version_id) (State (versions, commands)) =
-  let versions' =
-    if not (List.mem_assoc id versions) then raise (Failure "Does not exist")
-    else List.remove_assoc id versions
-  in State(versions', commands)
-
-let remove_versions (ids: version_id list) (s: state) =
-  List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
-
 let the_last_good_version (State (versions, _)) (id: version_id) =
   CList.find_map (fun (id', Version (outcome, the_stuff)) ->
     if id' >= id && !outcome <> `NotCommitted then
@@ -96,6 +86,23 @@ let the_last_good_version (State (versions, _)) (id: version_id) =
     else None) versions
 let the_version (State (versions, _)) (id: version_id) =
   List.assoc id versions
+
+(* XXX: We need some way of garbage-collecting old good versions *)
+let remove_version (id: version_id) (State (versions, commands)) =
+  let last_good = the_last_good_version (State(versions, commands)) id in
+  let matched_version =
+    (try
+      Some (List.assoc id versions)
+    with
+      | Not_found -> None) in
+  let versions' = match matched_version with
+    | Some x when (id, x) <> last_good -> List.remove_assoc id versions
+    | Some x -> versions
+    | None -> raise (Failure "Does not exist")
+  in State(versions', commands)
+
+let remove_versions (ids: version_id list) (s: state) =
+  List.fold_right (fun (i: version_id) (s': state) -> remove_version i s') ids s
 
 let the_command (State (_, commands)) (id: command_id) : (bool * string) =
   List.assoc id commands
