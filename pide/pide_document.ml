@@ -281,12 +281,23 @@ let string_of_state s = match s with
       (String.concat "; " (List.map string_of_vid_p versions))
       (abbreviate_list commands string_of_command)
 
+let log = if !Flags.debug then Some (open_out "/tmp/pide_document.log") else None
+let writelog s = match log with
+  | Some f -> Printf.fprintf f "%s\n%!" s
+  | _ -> ()
+
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
+  writelog (Printf.sprintf
+      "update(v_old = %d, v_new = %d, edits = _, st = %s)"
+      v_old v_new (string_of_state st));
   let Version (outcome, new_nodes) as new_version =
     let old_version = the_version st v_old in
     List.fold_left edit_nodes old_version edits in
-  let (v_old, Version (old_outcome, old_nodes)) = the_last_good_version st v_old in
+  writelog (Printf.sprintf "\tnew_version is %s"
+      (string_of_vid_p (v_old, new_version)));
+  let (v_old, Version (old_outcome, old_nodes)) as tlgv = the_last_good_version st v_old in
+  writelog (Printf.sprintf "\ttlgv is %s" (string_of_vid_p tlgv));
   let tasks = Queue.create () in
   let query_list = ref [] in
   let updated =
@@ -356,6 +367,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let updated_nodes = List.flatten (List.map snd updated) in
   let state' = define_version v_new
     (List.fold_left put_node new_version updated_nodes) st in
+  writelog (Printf.sprintf "\tnew state is %s" (string_of_state state'));
   (command_execs, (tasks, !query_list), state')
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
