@@ -392,7 +392,6 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
       Queue.push (`Observe (to_exec_list perspective command_execs)) tasks;
       (assignment, updated_node)
     else begin
-      Queue.push (`Bless (v_new, outcome)) tasks;
       [], [] end)
   in
   let command_execs = List.flatten (List.map fst updated) in
