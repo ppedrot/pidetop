@@ -43,8 +43,19 @@ let set_queries stmq queries =
   query_list := [];
   List.iter (set_queries_of_exec stmq) queries
 
+let interrupt_mutex = Mutex.create ()
+let interrupt_condition = Condition.create ()
+
 let abort_transaction stmq _ =
-  Control.interrupt := true
+  Mutex.lock interrupt_mutex;
+  Control.interrupt := true;
+  let spurious = ref true in
+  TQueue.push stmq (`Signal (interrupt_mutex, interrupt_condition, spurious));
+  while !spurious <> false do
+    Condition.wait interrupt_condition interrupt_mutex
+  done;
+  Control.interrupt := false;
+  Mutex.unlock interrupt_mutex
 
 let initialize_commands () =
   register_protocol_command "echo" (fun _ args ->
