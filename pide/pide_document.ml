@@ -33,6 +33,13 @@ let string_of_task = function
   | `Bless (id, good) ->
     "`Bless (" ^ string_of_int id ^ ", _)"
 
+let string_summary_of_task = function
+  | `Observe _ -> "`Observe"
+  | `Add _ -> "`Add"
+  | `EditAt _ -> "`EditAt"
+  | `Query _ -> "`Query"
+  | `Bless _ -> "`Bless"
+
 type id = int
 type version_id = id
 type command_id = id
@@ -281,6 +288,10 @@ let string_of_state s = match s with
       (String.concat "; " (List.map string_of_vid_p versions))
       (abbreviate_list commands string_of_command)
 
+let list_of_queue q =
+  let add = (fun l el -> el :: l) in
+  List.rev (Queue.fold add [] q)
+
 let log = if !Flags.debug then Some (open_out "/tmp/pide_document.log") else None
 let writelog s = match log with
   | Some f -> Printf.fprintf f "%s\n%!" s
@@ -296,8 +307,8 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
     List.fold_left edit_nodes old_version edits in
   writelog (Printf.sprintf "\tnew_version is %s"
       (string_of_vid_p (v_old, new_version)));
-  let (v_old, Version (old_outcome, old_nodes)) as tlgv = the_last_good_version st v_old in
-  writelog (Printf.sprintf "\ttlgv is %s" (string_of_vid_p tlgv));
+  let (v_old, Version (old_outcome, old_nodes)) as the_last_good_version = the_last_good_version st v_old in
+  writelog (Printf.sprintf "\tthe_last_good_version is %s" (string_of_vid_p the_last_good_version));
   let tasks = Queue.create () in
   let query_list = ref [] in
   let updated =
@@ -367,6 +378,8 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   let updated_nodes = List.flatten (List.map snd updated) in
   let state' = define_version v_new
     (List.fold_left put_node new_version updated_nodes) st in
+  writelog (Printf.sprintf "\ttasks are %s"
+      (abbreviate_list (list_of_queue tasks) string_summary_of_task));
   writelog (Printf.sprintf "\tnew state is %s" (string_of_state state'));
   (command_execs, (tasks, !query_list), state')
 
