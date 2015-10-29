@@ -125,6 +125,27 @@ type node_edit =
   | Perspective of (command_id list * overlay)
 type edit = string * node_edit
 
+let string_of_option a stringiser = match a with
+  | Some a -> "Some " ^ (stringiser a)
+  | None -> "None"
+
+let string_of_edit_pair p = match p with
+  | (l, r) ->
+    Printf.sprintf "(%s, %s)"
+        (string_of_option l string_of_int)
+        (string_of_option r string_of_int)
+
+let string_of_node_edit edit = match edit with
+  | Edits e ->
+    Printf.sprintf "Edits ([%s])"
+        (String.concat "; " (List.map string_of_edit_pair e))
+  | Perspective (ids, _) ->
+    Printf.sprintf "Perspective ([%s], _)"
+        (String.concat "; " (List.map string_of_int ids))
+
+let string_of_edit e = match e with
+  | (node, edit) -> Printf.sprintf "%s -> %s" node (string_of_node_edit edit)
+
 let define_command id (is_ignored: bool) (text: string) (State (versions, commands)) =
   let commands' =
     if List.mem_assoc id commands then raise (Failure "Dup")
@@ -300,8 +321,8 @@ let writelog s = match log with
 let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : state)
   (*(command_id * exec_id list) list * Pide_protocol.task Queue.t * state*) =
   writelog (Printf.sprintf
-      "update(v_old = %d, v_new = %d, edits = _, st = %s)"
-      v_old v_new (string_of_state st));
+      "update(v_old = %d, v_new = %d, edits = [%s], st = %s)"
+      v_old v_new (String.concat "; " (List.map string_of_edit edits)) (string_of_state st));
   let Version (outcome, new_nodes) as new_version =
     let old_version = the_version st v_old in
     List.fold_left edit_nodes old_version edits in
