@@ -14,7 +14,8 @@ type task =
   | `Add of Stateid.t * int * string * Stateid.t ref
   | `EditAt of Stateid.t
   | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
-  | `Bless of int * (transaction_outcome ref)]
+  | `Bless of int * (transaction_outcome ref)
+  | `Signal of (Mutex.t * Condition.t * bool ref) ]
 
 val string_of_task : task -> string
 

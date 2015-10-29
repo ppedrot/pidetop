@@ -17,7 +17,8 @@ type task =
   | `Add of Stateid.t * int * string * Stateid.t ref
   | `EditAt of Stateid.t
   | `Query of Stateid.t * Feedback.route_id * Stateid.t * string
-  | `Bless of int * (transaction_outcome ref)]
+  | `Bless of int * (transaction_outcome ref)
+  | `Signal of (Mutex.t * Condition.t * bool ref) ]
 
 let string_of_task = function
   | `Observe il ->
@@ -32,6 +33,8 @@ let string_of_task = function
                  Stateid.to_string id2 ^ ", " ^ s ^ ")"
   | `Bless (id, good) ->
     "`Bless (" ^ string_of_int id ^ ", _)"
+  | `Signal (_, _, _) ->
+    "`Signal(_, _, _)"
 
 let string_summary_of_task = function
   | `Observe _ -> "`Observe"
@@ -39,6 +42,7 @@ let string_summary_of_task = function
   | `EditAt _ -> "`EditAt"
   | `Query _ -> "`Query"
   | `Bless _ -> "`Bless"
+  | `Signal _ -> "`Signal"
 
 type id = int
 type version_id = id

@@ -102,6 +102,11 @@ while true do
         writelog (Printf.sprintf "\t\toutcome for %d is %s" new_id
                       (Pide_document.string_of_outcome !outcome));
         current_document := Stm.backup ()
+    | `Signal (mutex, condition, spurious), _ ->
+      Mutex.lock mutex;
+      spurious := false;
+      Condition.signal condition;
+      Mutex.unlock mutex
   with
   | Sys.Break ->
     (* This is how we receive discontinue_execution messages from the other
