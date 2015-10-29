@@ -83,6 +83,7 @@ while true do
          Coq_output.status position Coq_markup.status_running;
          (try
            last_edit_id := Some edit_id;
+           Control.check_for_interrupt ();
            let tip, _ =
              Stm.add ~newtip:exec_id ~ontop:tip true edit_id text in
            tip_exec_id := tip;
