@@ -115,7 +115,8 @@ let parse_body source =
 
   (* parse chunks *)
 
-  let chunks = split false char_X source |> List.map (split true char_Y) in
+  let rev_rev_map f l = List.rev (List.rev_map f l) in
+  let chunks = split false char_X source |> rev_rev_map (split true char_Y) in
 
   let parse_chunk = function
     | [] -> assert false
