@@ -71,6 +71,7 @@ while true do
        ignore(protect Stm.observe id)
     | `Observe p, None -> Stm.set_perspective p
     | `Query (at,route_id,query_id,text), _ when !mode <> Nothing ->
+         Control.check_for_interrupt ();
          if Stm.state_of_id at <> `Expired then
            let position = Position.id_only (Stateid.to_int query_id) in
            Coq_output.status position Coq_markup.status_running;
