@@ -258,8 +258,11 @@ let get_queries cid at ov =
     else acc)
   ov []
 
+let goals_printed = ref Stateid.Set.empty
+let goal_printed_at at = goals_printed := Stateid.Set.add at !goals_printed
 
 let emit_goal at =
+    if Stateid.Set.mem at !goals_printed then [] else
     let eid = Stateid.fresh () in
     (* TODO: Factor this differently, hardcoded query... *)
     [eid, query at Feedback.default_route eid "PideFeedbackGoals."]
