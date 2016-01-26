@@ -35,10 +35,13 @@ let feedback_structured_goals () =
         ]
       ) in
       Pp.feedback
-       (Feedback.Custom(Loc.ghost, "structured_goals",xml_structured_goals));
+       (Feedback.Custom(Loc.ghost, "structured_goals",xml_structured_goals))
+(* Not used by Coqoon
+       ;
       Pp.feedback
         (Feedback.Goals
           (Loc.ghost, Pp.string_of_ppcmds
             (Printer.pr_open_subgoals
               ~proof:pfts ())))
+*)
   with Proof_global.NoCurrentProof -> ()
