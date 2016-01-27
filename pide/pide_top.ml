@@ -75,8 +75,7 @@ while true do
          if Stm.state_of_id at <> `Expired then
            let position = Position.id_only (Stateid.to_int query_id) in
            Coq_output.status position Coq_markup.status_running;
-           ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text);
-           if text = "PideFeedbackGoals." then Pide_document.goal_printed_at at
+           ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text)
     | `Query _, _ -> ()
     | `Add _, _ when !mode <> Everything -> ()
     | `Add _, None -> assert false

@@ -258,17 +258,23 @@ let get_queries cid at ov =
     else acc)
   ov []
 
-let goals_printed = ref Stateid.Set.empty
-let goal_printed_at at = goals_printed := Stateid.Set.add at !goals_printed
+let goal_ids = ref []
+let get_or_make_goal_id at =
+  try
+    List.assoc at !goal_ids
+  with
+  | Not_found ->
+    let eid = Stateid.fresh() in
+    goal_ids := (at, eid) :: !goal_ids;
+    eid
 
-let emit_goal at =
-    if Stateid.Set.mem at !goals_printed then [] else
-    let eid = Stateid.fresh () in
+let emit_goal cid at =
+    let eid = get_or_make_goal_id cid in
     (* TODO: Factor this differently, hardcoded query... *)
     [eid, query at Feedback.default_route eid "PideFeedbackGoals."]
 
 let set_overlay cid at ov =
-  let mandatory = emit_goal at in (* Queries that execute on all states *)
+  let mandatory = emit_goal cid at in (* Queries that execute on all states *)
   let queries = get_queries cid at ov in
   mandatory @ queries
 
