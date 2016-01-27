@@ -258,25 +258,27 @@ let get_queries cid at ov =
     else acc)
   ov []
 
-let goal_ids = ref []
-let get_or_make_goal_id at =
-  try
-    List.assoc at !goal_ids
-  with
-  | Not_found ->
-    let eid = Stateid.fresh() in
-    goal_ids := (at, eid) :: !goal_ids;
-    eid
+module StateidMap = Map.Make(Stateid)
+let goals_printed = ref StateidMap.empty
+let goal_printed_at ~at ~exec =
+  goals_printed := StateidMap.add at exec !goals_printed
 
-let emit_goal cid at =
-    let eid = get_or_make_goal_id cid in
-    (* TODO: Factor this differently, hardcoded query... *)
-    [eid, query at Feedback.default_route eid "PideFeedbackGoals."]
+let goal_query = "PideFeedbackGoals."
 
+let emit_goal at =
+  try let exec = StateidMap.find at !goals_printed in exec, []
+  with Not_found ->
+    let exec = Stateid.fresh () in
+    exec, [query at Feedback.default_route exec goal_query]
+
+(* Returns the list of exec ids for the queries on span "at" and
+ * the list of query_tasks to be given to the STM.  The latter list
+ * could be shorter than the former one if some queries have already been
+ * run by the STM (goal_printed_at) *)
 let set_overlay cid at ov =
-  let mandatory = emit_goal cid at in (* Queries that execute on all states *)
-  let queries = get_queries cid at ov in
-  mandatory @ queries
+  let exec_goal, query_goal = emit_goal at in
+  let execs, queries = List.split (get_queries cid at ov) in
+  exec_goal :: execs, query_goal @ queries
 
 let to_exec_list p (execs: (command_id * exec_id list) list): exec_id list =
   List.fold_right
@@ -354,12 +356,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
         let common_execs = List.fold_right
           (fun (id, exec_id, tip_exec_id) acc ->
             if List.mem id perspective then (
-              let queries = set_overlay id exec_id overlay in
-              let ids_queries = List.map fst queries in
-              let query_tasks = List.map snd queries in
-              query_list := (exec_id, query_tasks) :: !query_list;
-              if ids_queries = [] then acc
-              else (id, exec_id :: ids_queries) :: acc)
+              let execs, tasks = set_overlay id exec_id overlay in
+              query_list := (exec_id, tasks) :: !query_list;
+              if execs = [] then acc else (id, exec_id :: execs) :: acc)
             else acc
             ) common [] in
         let common_tip =
@@ -385,11 +384,9 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
       let overlay_execs =
         List.fold_right (fun (id, exec_id,_) acc ->
           if List.mem id perspective then (
-            let queries = set_overlay id exec_id overlay in
-            let ids_queries = List.map fst queries in
-            let query_tasks = List.map snd queries in
-            query_list := (exec_id, query_tasks) :: !query_list;
-            (id, exec_id :: ids_queries):: acc)
+            let execs, tasks = set_overlay id exec_id overlay in
+            query_list := (exec_id, tasks) :: !query_list;
+            (id, exec_id :: execs):: acc)
           else (id, [exec_id]) :: acc)
         new_computation' [] in
       let command_execs = common_execs @ overlay_execs in

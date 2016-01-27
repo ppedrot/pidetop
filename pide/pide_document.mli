@@ -53,6 +53,9 @@ val define_command: command_id -> bool -> string -> state -> state
 val update: version_id -> version_id -> edit list -> state ->
   (command_id * exec_id list) list * (task Queue.t * (exec_id * [ `Query of exec_id * Feedback.route_id * Stateid.t * string ] list) list) * state
 
+val goal_query : string
+val goal_printed_at : at:Stateid.t -> exec:Stateid.t -> unit
+
 val remove_versions: version_id list -> state -> state
 
 (* Install a printer to the current printer stack. The printer will be executed
