@@ -234,9 +234,6 @@ let rec chop_common (entries0 : entries) (up_to : transaction_outcome) (entries1
       (hd :: common', rest')
   | _ -> ([], (entries0, entries1))
 
-
-let log = open_out "/tmp/log"
-
 let add task_queue exec_id tip_exec_id edit_id text =
   Queue.push (`Add (exec_id, edit_id, text, tip_exec_id)) task_queue
 
