@@ -15,9 +15,7 @@ let process_goal sigma g =
     (List.rev (Environ.fold_named_context process_hyp env ~init:[]))) in
   Xml_datatype.Element ("goal", [("id", id)], [hyps; ccl])
 
-let feedback_structured_goals () =
-  try
-      let pfts = Proof_global.give_me_the_proof () in
+let feedback_structured_goals ?state_id pfts =
       let structured_goals = Proof.map_structured_proof pfts process_goal in
       let xml_bg_goal = fun (l, r) -> Xml_datatype.Element("bg_goal", [], 
           [Xml_datatype.Element("left_bg_goals", [], l); 
@@ -34,7 +32,7 @@ let feedback_structured_goals () =
             structured_goals.Proof.given_up_goals)
         ]
       ) in
-      Pp.feedback
+      Pp.feedback ?state_id
        (Feedback.Custom(Loc.ghost, "structured_goals",xml_structured_goals))
 (* Not used by Coqoon
        ;
@@ -44,4 +42,3 @@ let feedback_structured_goals () =
             (Printer.pr_open_subgoals
               ~proof:pfts ())))
 *)
-  with Proof_global.NoCurrentProof -> ()

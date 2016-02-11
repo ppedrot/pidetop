@@ -17,4 +17,18 @@ let () =
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
-        | _ -> Pp.feedback ~state_id:id Feedback.Processed)
+        | _ -> Pp.feedback ~state_id:id Feedback.Processed);
+  Hook.set Stm.state_computed_hook
+    (fun id ~in_cache ->
+       Pp.feedback ~state_id:id Feedback.Processed;
+       if not in_cache then
+       match Stm.state_of_id id with
+       | `Expired | `Valid None -> ()
+       | `Valid (Some { Stm.proof }) ->
+         try
+           Pide_goalprint.feedback_structured_goals ~state_id:id
+             (Proof_global.proof_of_state proof)
+         with Proof_global.NoCurrentProof -> ())
+
+;;
+
