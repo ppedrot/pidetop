@@ -74,9 +74,15 @@ while true do
          Control.check_for_interrupt ();
          if Stm.state_of_id at <> `Expired then
            let position = Position.id_only (Stateid.to_int query_id) in
-           Coq_output.status position Coq_markup.status_running;
-           ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text);
-           if text = Pide_document.goal_query then
+           let is_goal_print = text = Pide_document.goal_query in
+           if is_goal_print &&
+              Stateid.Set.mem at !Goal_printer.goal_already_printed
+           then writelog ("skip " ^ Pide_document.string_of_task task)
+           else begin
+            Coq_output.status position Coq_markup.status_running;
+            ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text)
+           end;
+           if is_goal_print then
              Pide_document.goal_printed_at ~at ~exec:query_id
     | `Query _, _ -> ()
     | `Add _, _ when !mode <> Everything -> ()
