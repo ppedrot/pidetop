@@ -74,7 +74,7 @@ while true do
          Control.check_for_interrupt ();
          if Stm.state_of_id at <> `Expired then
            let position = Position.id_only (Stateid.to_int query_id) in
-           (* Coq_output.status position Coq_markup.status_running; *)
+           Coq_output.status position Coq_markup.status_running;
            ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text);
            if text = Pide_document.goal_query then
              Pide_document.goal_printed_at ~at ~exec:query_id
@@ -83,7 +83,7 @@ while true do
     | `Add _, None -> assert false
     | `Add (exec_id, edit_id, text, tip_exec_id), Some tip ->
          let position = Position.id_only (Stateid.to_int exec_id) in
-         (* Coq_output.status position Coq_markup.status_running; *)
+         Coq_output.status position Coq_markup.status_running;
          (try
            last_edit_id := Some edit_id;
            Control.check_for_interrupt ();
