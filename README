@@ -34,14 +34,7 @@ For Windows, we provide a [pre-compiled binary](https://bitbucket.org/coqpide/pi
 Compatibility
 -------------
 
-This version of PIDEtop, Coq-0.3.0, is known to work with the following versions of Coq and PIDE:
-
-### Coq
-- Version: 8.5beta2
-   
-
-### PIDE
-- Version: Coq-0.3.0
+PIDEtop requires Coq 8.5
 
 License
 -------
