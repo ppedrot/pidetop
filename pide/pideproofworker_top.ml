@@ -17,10 +17,10 @@ let () =
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
-        | _ -> Pp.feedback ~state_id:id Feedback.Processed);
+        | _ -> Feedback.(feedback ~id:(State id) Feedback.Processed));
   Hook.set Stm.state_computed_hook
     (fun id ~in_cache ->
-       Pp.feedback ~state_id:id Feedback.Processed;
+       Feedback.(feedback ~id:(State id) Feedback.Processed);
        if not in_cache then
        match Stm.state_of_id id with
        | `Expired | `Valid None -> ()

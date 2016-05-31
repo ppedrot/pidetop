@@ -7,7 +7,7 @@ let () = Coqtop.toploop_init := (fun args ->
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
-        | _ -> Pp.feedback ~state_id:id Feedback.Processed);
+        | _ -> Feedback.(feedback ~id:(State id) Processed));
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
   Flags.async_proofs_flags_for_workers := ["-feedback-glob"];
@@ -98,7 +98,7 @@ while true do
            tip_exec_id := tip;
            cur_tip := Some tip;
          with e when Errors.noncritical e ->
-           Pp.feedback ~state_id:exec_id Feedback.Processed;
+           Feedback.(feedback ~id:(State exec_id) Processed);
            mode := QueriesOnly)
     | `Bless (new_id, outcome), _ ->
         outcome :=

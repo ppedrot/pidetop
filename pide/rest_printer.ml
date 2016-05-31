@@ -14,8 +14,7 @@ module Rest_printer_s = struct
         Some(Xml_datatype.Element(Coq_markup.warningN, [],
           (Pide_xml.Encode.string "Axiom added.")))
     | Feedback.Message { Feedback.message_content = s } ->
-        Some(Xml_datatype.Element(Coq_markup.writelnN, [],
-          Pide_xml.Encode.string s))
+        Some(Xml_datatype.Element(Coq_markup.writelnN, [], [s]))
     | _ -> raise Pide_printer.Unhandled
 
   let props = Properties.put ("source", "query") Properties.empty

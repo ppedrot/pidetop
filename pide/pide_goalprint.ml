@@ -32,8 +32,8 @@ let feedback_structured_goals ?state_id pfts =
             structured_goals.Proof.given_up_goals)
         ]
       ) in
-      Pp.feedback ?state_id
-       (Feedback.Custom(Loc.ghost, "structured_goals",xml_structured_goals))
+      Feedback.(feedback ~id:(Option.cata (fun x -> State x) (Edit 0) state_id)
+                  (Custom(Loc.ghost, "structured_goals",xml_structured_goals)))
 (* Not used by Coqoon
        ;
       Pp.feedback
