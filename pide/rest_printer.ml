@@ -13,8 +13,8 @@ module Rest_printer_s = struct
     | Feedback.AddedAxiom ->
         Some(Xml_datatype.Element(Coq_markup.warningN, [],
           (Pide_xml.Encode.string "Axiom added.")))
-    | Feedback.Message { Feedback.message_content = s } ->
-        Some(Xml_datatype.Element(Coq_markup.writelnN, [], [s]))
+    | Feedback.Message (_, s) ->
+        Some(Xml_datatype.Element(Coq_markup.writelnN, [], [Richpp.repr s]))
     | _ -> raise Pide_printer.Unhandled
 
   let props = Properties.put ("source", "query") Properties.empty
