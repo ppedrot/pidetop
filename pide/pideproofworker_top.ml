@@ -23,7 +23,7 @@ let () =
        Feedback.(feedback ~id:(State id) Feedback.Processed);
        if not in_cache then
        match Stm.state_of_id id with
-       | `Expired | `Valid None -> ()
+       | `Expired | `Valid None | `Error _ -> ()
        | `Valid (Some { Stm.proof }) ->
          try
            Pide_goalprint.feedback_structured_goals ~state_id:id

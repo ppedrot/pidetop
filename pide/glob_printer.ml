@@ -78,7 +78,6 @@ module Glob_printer : Pide_printer.Printer_spec = struct
                def_map := M.add (typ, name,  secpath) (loc, Coq_markup.ExtFile v_name) !def_map)
           with Scanf.Scan_failure _ | End_of_file -> ()
         done;
-        assert false;
         None
       with End_of_file ->
         close_in c;
