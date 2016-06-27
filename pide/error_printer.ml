@@ -1,18 +1,19 @@
 module Error_printer: (Pide_printer.Printer_spec) = struct
   let can_print = function
-    | Feedback.ErrorMsg _ -> true
+    | Feedback.Message(Feedback.Error, _, _) -> true
     | _ -> false
 
   let output_function = function
-    | Feedback.ErrorMsg _ -> Coq_output.error_msg ?props:None
+    | Feedback.Message(Feedback.Error, _, _) -> Coq_output.error_msg ?props:None
     | _ -> raise Pide_printer.Unhandled
 
   let make_pos = function
-    | Feedback.ErrorMsg (loc, _) -> Position.of_loc loc
+    | Feedback.Message(Feedback.Error, loc, _) -> Position.of_loc (Option.default Loc.ghost loc)
     | _ -> raise Pide_printer.Unhandled
 
   let make_body _ = function
-    | Feedback.ErrorMsg (loc, txt) ->
+    | Feedback.Message(Feedback.Error, _loc, msg) ->
+      let txt = Richpp.raw_print msg in
         if Str.string_match (Str.regexp "^[\t\r\n ]*User interrupt\\.") txt 0
         then
           None

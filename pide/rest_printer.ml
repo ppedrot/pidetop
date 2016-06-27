@@ -13,7 +13,7 @@ module Rest_printer_s = struct
     | Feedback.AddedAxiom ->
         Some(Xml_datatype.Element(Coq_markup.warningN, [],
           (Pide_xml.Encode.string "Axiom added.")))
-    | Feedback.Message (_, s) ->
+    | Feedback.Message (_, _, s) ->
         Some(Xml_datatype.Element(Coq_markup.writelnN, [], [Richpp.repr s]))
     | _ -> raise Pide_printer.Unhandled
 
