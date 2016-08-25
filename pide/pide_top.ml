@@ -25,9 +25,9 @@ let () = Hook.set Stm.state_ready_hook (fun stateid ->
 
 let protect f arg =
   try Some (f arg)
-  with e when Errors.noncritical e ->
-  let e = Errors.push e in
-  let msg = Pp.string_of_ppcmds (Errors.iprint e) in
+  with e when CErrors.noncritical e ->
+  let e = CErrors.push e in
+  let msg = Pp.string_of_ppcmds (CErrors.iprint e) in
   prerr_endline msg;
   None
 
@@ -97,7 +97,7 @@ while true do
              Stm.add ~newtip:exec_id ~ontop:tip true edit_id text in
            tip_exec_id := tip;
            cur_tip := Some tip;
-         with e when Errors.noncritical e ->
+         with e when CErrors.noncritical e ->
            Feedback.(feedback ~id:(State exec_id) Processed);
            mode := QueriesOnly)
     | `Bless (new_id, outcome), _ ->
@@ -123,7 +123,7 @@ while true do
        ignore all the execution we still have to do *)
     mode := Nothing
   | e ->
-    let desc = Pp.string_of_ppcmds (Errors.print e) in
+    let desc = Pp.string_of_ppcmds (CErrors.print e) in
     prerr_endline ("An exception has escaped while processing: "^
         Pide_document.string_of_task task^"\n" ^ desc);
     writelog (Printf.sprintf "\texception:\n%s" desc));

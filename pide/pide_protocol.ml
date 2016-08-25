@@ -17,9 +17,9 @@ let run_command name args stmq =
   in
     try cmd stmq args
     with e -> 
-      let e = Errors.push e in
+      let e = CErrors.push e in
       raise (Failure ("Coq process protocol failure: " ^ quote name ^ "\n" ^
-                      Pp.string_of_ppcmds (Errors.iprint e)))
+                      Pp.string_of_ppcmds (CErrors.iprint e)))
 
 
 let execute stmq task_queue =
@@ -113,8 +113,8 @@ let rec loop stmq =
   | Some (name :: args) ->
       prerr_endline ("got message: "^ name);
       run_command name args stmq
-  with e when Errors.noncritical e ->
-    let e = Errors.push e in
+  with e when CErrors.noncritical e ->
+    let e = CErrors.push e in
     prerr_endline (Printexc.to_string (fst e));
     error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string (fst e))));
   loop stmq
