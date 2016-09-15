@@ -430,7 +430,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let initialize () =
-  Feedback.set_feeder (fun f -> ignore (run_printers f));
+  Feedback.add_feeder (fun f -> ignore (run_printers f));
   Feedback.(set_logger feedback_logger)
 
 let initialize_state () =
