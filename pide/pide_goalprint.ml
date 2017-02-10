@@ -9,7 +9,7 @@ let process_goal sigma g =
     let ccl_string = string_of_ppcmds (Printer.pr_goal_concl_style_env env sigma norm_constr) in
     Xml_datatype.Element ("conclusion", [], [Xml_datatype.PCData ccl_string]) in
   let process_hyp env h_env acc =
-    let hyp_string = (string_of_ppcmds (Printer.pr_var_decl env sigma h_env)) in
+    let hyp_string = (string_of_ppcmds (Printer.pr_named_decl env sigma h_env)) in
     (Xml_datatype.Element ("hypothesis", [], [Xml_datatype.PCData hyp_string])) :: acc in
   let hyps = Xml_datatype.Element ("hypotheses", [], 
     (List.rev (Environ.fold_named_context process_hyp env ~init:[]))) in
