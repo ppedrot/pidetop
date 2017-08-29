@@ -8,12 +8,12 @@ module Error_printer: (Pide_printer.Printer_spec) = struct
     | _ -> raise Pide_printer.Unhandled
 
   let make_pos = function
-    | Feedback.Message(Feedback.Error, loc, _) -> Position.of_loc (Option.default Loc.ghost loc)
+    | Feedback.Message(Feedback.Error, loc, _) -> Position.of_loc (Option.default (Loc.make_loc (0,0)) loc)
     | _ -> raise Pide_printer.Unhandled
 
   let make_body _ = function
     | Feedback.Message(Feedback.Error, _loc, msg) ->
-      let txt = Richpp.raw_print msg in
+      let txt = Pp.string_of_ppcmds msg in
         if Str.string_match (Str.regexp "^[\t\r\n ]*User interrupt\\.") txt 0
         then
           None

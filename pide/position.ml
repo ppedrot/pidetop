@@ -8,8 +8,7 @@ let none = make 0 0
 let id_only id = make_id 0 0 id
 
 let of_loc loc =
-  if Loc.is_ghost loc then id_only
-  else let i, j = Loc.unloc loc in make_id (i+1) (j+1)
+  let i, j = Loc.unloc loc in make_id (i+1) (j+1)
 
 (* properties *)
 

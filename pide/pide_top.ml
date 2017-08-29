@@ -1,13 +1,13 @@
 let () = Coqtop.toploop_init := (fun args ->
   Dumpglob.feedback_glob ();
-  Flags.make_silent true;
+  Flags.quiet := true;
   Flags.async_proofs_never_reopen_branch := true;
   Flags.async_proofs_full := true;
   Hook.set Stm.unreachable_state_hook
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
-        | _ -> Feedback.(feedback ~id:(State id) Processed));
+        | _ -> Feedback.(feedback ~id Processed));
   Pide_slave.init_stdout ();
   Pide_flags.pide_slave := true;
   Flags.async_proofs_flags_for_workers := ["-feedback-glob"];
@@ -80,7 +80,7 @@ while true do
            then writelog ("skip " ^ Pide_document.string_of_task task)
            else begin
             Coq_output.status position Coq_markup.status_running;
-            ignore(protect(Stm.query ~at ~report_with:(query_id,route_id)) text)
+            ignore(protect(Stm.query ~at ~route:route_id) (Pcoq.Gram.parsable (Stream.of_string text)))
            end;
            if is_goal_print then
              Pide_document.goal_printed_at ~at ~exec:query_id
@@ -93,12 +93,13 @@ while true do
          (try
            last_edit_id := Some edit_id;
            Control.check_for_interrupt ();
+           let ast = Stm.parse_sentence tip (Pcoq.Gram.parsable (Stream.of_string text)) in
            let tip, _ =
-             Stm.add ~newtip:exec_id ~ontop:tip true edit_id text in
+             Stm.add ~newtip:exec_id ~ontop:tip true ast in
            tip_exec_id := tip;
            cur_tip := Some tip;
          with e when CErrors.noncritical e ->
-           Feedback.(feedback ~id:(State exec_id) Processed);
+           Feedback.(feedback ~id:exec_id Processed);
            mode := QueriesOnly)
     | `Bless (new_id, outcome), _ ->
         outcome :=

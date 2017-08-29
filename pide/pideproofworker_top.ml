@@ -1,7 +1,7 @@
 module W = AsyncTaskQueue.MakeWorker(Stm.ProofTask)
 
 let () = Coqtop.toploop_init := (fun args ->
-        Flags.make_silent true;
+        Flags.quiet := true;
         W.init_stdout ();
         CoqworkmgrApi.init !Flags.async_proofs_worker_priority;
         args)
@@ -17,10 +17,10 @@ let () =
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
-        | _ -> Feedback.(feedback ~id:(State id) Feedback.Processed));
+        | _ -> Feedback.(feedback ~id:id Feedback.Processed));
   Hook.set Stm.state_computed_hook
     (fun id ~in_cache ->
-       Feedback.(feedback ~id:(State id) Feedback.Processed);
+       Feedback.(feedback ~id:id Feedback.Processed);
        if not in_cache then
        match Stm.state_of_id id with
        | `Expired | `Valid None | `Error _ -> ()

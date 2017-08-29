@@ -411,11 +411,7 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   (command_execs, (tasks, !query_list), state')
 
 let lift f {Feedback.id; Feedback.contents; Feedback.route} =
-  let i = match id with
-  | Feedback.State exec_id ->
-      Stateid.to_int exec_id
-  | Feedback.Edit i -> i
-  in
+  let i = Stateid.to_int id in
   f i route contents
 
 let installed_printers : (module Pide_printer.Printer) list ref = ref []
@@ -430,8 +426,7 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
   !installed_printers
 
 let initialize () =
-  Feedback.add_feeder (fun f -> ignore (run_printers f));
-  Feedback.(set_logger feedback_logger)
+  ignore(Feedback.add_feeder (fun f -> ignore (run_printers f)))
 
 let initialize_state () =
   initial_state := Stm.get_current_state ()

@@ -5,7 +5,7 @@ let goal_printer: (module Pide_printer.Printer) = (module struct
   | Feedback.Custom(loc,"structured_goals",goals) ->
       goal_already_printed := Stateid.Set.add (Stateid.of_int id)
         !goal_already_printed;
-      let pos = Position.of_loc loc id in
+      let pos = Position.of_loc (Option.default (Loc.make_loc (0,0)) loc) id in
       Coq_output.report pos [goals]
 
 (*  Not used by Coqoon anymore:
