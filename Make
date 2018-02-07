@@ -40,4 +40,3 @@ pide/pidetop.mllib
 pide/pideproofworkertop.mllib
 
 -I pide/
--bypass-API
