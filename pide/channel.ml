@@ -21,10 +21,10 @@ let read_chunk len =
     with Failure _ ->
       raise (Failure ("Coq process: malformed chunk header \"" ^ len ^"\""))
   in
-  let chunk = String.make n '\000' in
+  let chunk = Bytes.make n '\000' in
   CThread.thread_friendly_really_read
     (Option.get !in_channel) chunk ~off:0 ~len:n;
-  chunk
+  Bytes.to_string chunk
 
 let delim = Str.regexp ","
 
