@@ -1,3 +1,3 @@
-install-toploop: all
+install-toploop: all byte
 	$(foreach f, $(CMXSFILES) $(CMAFILES), \
             install -m 0644 $(f) $(COQTOPINSTALL)/ &&) true
