@@ -26,21 +26,11 @@ let execute stmq task_queue =
   Queue.iter (fun t -> TQueue.push stmq t) task_queue;
   Queue.clear task_queue
 
-let query_list = ref []
-
-let in_cache eid =
-  match Stm.state_of_id eid with
-  | `Expired | `Valid None -> false
-  | _ -> true
 
 let set_queries_of_exec stmq (exec_id, queries) =
-  if in_cache exec_id then
-    List.iter (fun query -> TQueue.push stmq (query :> Pide_document.task)) queries
-  else
-      query_list :=  (exec_id, queries) :: !query_list
+  List.iter (fun query -> TQueue.push stmq (query :> Pide_document.task)) queries
 
 let set_queries stmq queries =
-  query_list := [];
   List.iter (set_queries_of_exec stmq) queries
 
 let interrupt_mutex = Mutex.create ()
@@ -114,7 +104,6 @@ let rec loop stmq =
       prerr_endline ("got message: "^ name);
       run_command name args stmq
   with e when CErrors.noncritical e ->
-    let e = CErrors.push e in
-    prerr_endline (Printexc.to_string (fst e));
-    error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string (fst e))));
-  loop stmq
+    prerr_endline (Printexc.to_string e);
+    error_msg Position.none (Pide_xml.Encode.string (Printexc.to_string e)));
+    loop stmq

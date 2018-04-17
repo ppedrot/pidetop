@@ -1,7 +1,3 @@
-open Coq_messages
-open Coq_output
-open Coq_markup
-
 type transaction_outcome =
   [ `NotCommitted
   | `CommittedUpTo of int
@@ -47,21 +43,9 @@ let string_summary_of_task = function
 type id = int
 type version_id = id
 type command_id = id
-type instance_id = id
 type exec_id = Stateid.t
 
 let no_id = 0
-
-let new_id_counter = ref 0
-let new_id_lock = Mutex.create ()
-
-let new_id () =
-  Mutex.lock new_id_lock;
-  let i = !new_id_counter + 1 in
-  if (i > 0) then new_id_counter := i;
-  Mutex.unlock new_id_lock;
-  if (i > 0) then i
-  else raise (Failure "Counter overflow")
 
 (* Overlay: print functions on a specific command span. *)
 (* The type encodes the command to print on, the query to execute and its 
@@ -410,8 +394,8 @@ let update (v_old: version_id) (v_new: version_id) (edits: edit list) (st : stat
   writelog (Printf.sprintf "\tnew state is %s" (string_of_state state'));
   (command_execs, (tasks, !query_list), state')
 
-let lift f {Feedback.id; Feedback.contents; Feedback.route} =
-  let i = Stateid.to_int id in
+let lift f {Feedback.span_id; Feedback.contents; Feedback.route} =
+  let i = Stateid.to_int span_id in
   f i route contents
 
 let installed_printers : (module Pide_printer.Printer) list ref = ref []
@@ -428,5 +412,5 @@ let run_printers f = List.iter (fun (module P : Pide_printer.Printer) ->
 let initialize () =
   ignore(Feedback.add_feeder (fun f -> ignore (run_printers f)))
 
-let initialize_state () =
-  initial_state := Stm.get_current_state ()
+let initialize_state { Vernac.State.doc } =
+  initial_state := Stm.get_current_state ~doc

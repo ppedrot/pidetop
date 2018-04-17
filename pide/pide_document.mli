@@ -67,4 +67,4 @@ val change_state: (state -> state) -> unit
 
 val initialize: unit -> unit
 
-val initialize_state: unit -> unit
+val initialize_state: Vernac.State.t -> unit

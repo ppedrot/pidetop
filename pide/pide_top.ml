@@ -1,23 +1,36 @@
-let () = Coqtop.toploop_init := (fun args ->
+let () = Coqtop.toploop_init := (fun coq_opts extra_args ->
   Dumpglob.feedback_glob ();
   Flags.quiet := true;
-  Flags.async_proofs_never_reopen_branch := true;
-  Flags.async_proofs_full := true;
+  let coq_opts = { coq_opts with
+    Coqargs.stm_flags =
+      { coq_opts.Coqargs.stm_flags with
+          Stm.AsyncOpts.async_proofs_full = true;
+          Stm.AsyncOpts.async_proofs_never_reopen_branch = true; } } in
   Hook.set Stm.unreachable_state_hook
     (fun id (e, info) ->
       match e with
         | Sys.Break -> ()
         | _ -> Feedback.(feedback ~id Processed));
-  Pide_slave.init_stdout ();
+  Pide_document.initialize ();
+  Pide_protocol.initialize ();
   Pide_flags.pide_slave := true;
-  Flags.async_proofs_flags_for_workers := ["-feedback-glob"];
+  AsyncTaskQueue.async_proofs_flags_for_workers := ["-feedback-glob"];
   Stm.ProofTask.name := "pideproofworker";
-  args)
+  coq_opts, extra_args)
+
+module SidMap = Map.Make(Stateid)
+let delayed_queries : Pide_document.task list SidMap.t ref = ref SidMap.empty
+
+let delay_query_until_ready stateid q =
+  try let qs = SidMap.find stateid !delayed_queries in
+    delayed_queries := SidMap.add stateid (q :: qs) !delayed_queries
+  with Not_found ->
+    delayed_queries := SidMap.add stateid [q] !delayed_queries
 
 let stm_queue = TQueue.create ()
 let () = Hook.set Stm.state_ready_hook (fun stateid ->
   try
-    let queries = List.assoc stateid !Pide_protocol.query_list in
+    let queries = SidMap.find stateid !delayed_queries in
     List.iter (fun query -> TQueue.push stm_queue (query :> Pide_document.task))
       queries
   with Not_found -> ()
@@ -46,11 +59,14 @@ let writelog s = match log with
   | Some f -> Printf.fprintf f "%s\n%!" s
   | _ -> ()
 
-let consumer_thread () =
+(* XXX current_doc is still a dummy value, shall replace backup/restore and
+ * current_doc_deprecated *)
+let consumer_thread { Vernac.State.doc = initial_doc } =
   let cur_tip = ref None in
   let last_edit_id = ref None in
   let mode = ref Everything in
-  let current_document = ref (Stm.backup ()) in
+  let current_doc_deprecated  = ref (Stm.backup ()) in
+  let current_doc = ref initial_doc in
 while true do
   let task = TQueue.pop stm_queue in
   let old_mode = !mode in
@@ -59,20 +75,23 @@ while true do
   (try
     match task, !cur_tip with
     | `EditAt here, _ ->
-       Stm.restore !current_document;
+       Stm.restore !current_doc_deprecated;
        cur_tip := Some here;
        mode := Everything;
        last_edit_id := None;
        Control.interrupt := false;
-       ignore(protect Stm.edit_at here)
+       ignore(protect (Stm.edit_at ~doc:!current_doc) here)
     | `Observe p, Some id ->
-       Stm.set_perspective p;
+       Stm.set_perspective ~doc:!current_doc p;
        cur_tip := None;
-       ignore(protect Stm.observe id)
-    | `Observe p, None -> Stm.set_perspective p
-    | `Query (at,route_id,query_id,text), _ when !mode <> Nothing ->
+       ignore(protect (Stm.observe ~doc:!current_doc) id)
+    | `Observe p, None -> Stm.set_perspective ~doc:!current_doc p
+    | `Query (at,route_id,query_id,text) as q, _ when !mode <> Nothing ->
          Control.check_for_interrupt ();
-         if Stm.state_of_id at <> `Expired then
+         begin match Stm.state_of_id ~doc:!current_doc at with
+         | `Expired | `Error _ -> ()
+         | `Valid None -> delay_query_until_ready at q
+         | `Valid (Some _) ->
            let position = Position.id_only (Stateid.to_int query_id) in
            let is_goal_print = text = Pide_document.goal_query in
            if is_goal_print &&
@@ -80,10 +99,12 @@ while true do
            then writelog ("skip " ^ Pide_document.string_of_task task)
            else begin
             Coq_output.status position Coq_markup.status_running;
-            ignore(protect(Stm.query ~at ~route:route_id) (Pcoq.Gram.parsable (Stream.of_string text)))
+            ignore(protect(Stm.query ~doc:!current_doc ~at ~route:route_id)
+              (Pcoq.Gram.parsable (Stream.of_string text)))
            end;
            if is_goal_print then
              Pide_document.goal_printed_at ~at ~exec:query_id
+         end
     | `Query _, _ -> ()
     | `Add _, _ when !mode <> Everything -> ()
     | `Add _, None -> assert false
@@ -93,11 +114,12 @@ while true do
          (try
            last_edit_id := Some edit_id;
            Control.check_for_interrupt ();
-           let ast = Stm.parse_sentence tip (Pcoq.Gram.parsable (Stream.of_string text)) in
-           let tip, _ =
-             Stm.add ~newtip:exec_id ~ontop:tip true ast in
+           let ast = Stm.parse_sentence ~doc:!current_doc tip (Pcoq.Gram.parsable (Stream.of_string text)) in
+           let doc, tip, _ =
+             Stm.add ~doc:!current_doc ~newtip:exec_id ~ontop:tip true ast in
            tip_exec_id := tip;
            cur_tip := Some tip;
+           current_doc := doc
          with e when CErrors.noncritical e ->
            Feedback.(feedback ~id:exec_id Processed);
            mode := QueriesOnly)
@@ -111,7 +133,9 @@ while true do
             `NotCommitted;
         writelog (Printf.sprintf "\t\toutcome for %d is %s" new_id
                       (Pide_document.string_of_outcome !outcome));
-        current_document := Stm.backup ()
+        (* XXX when you remove this double check that the update of
+         * current_doc is OK wrt the new STM API (add cannot fail) *)
+        current_doc_deprecated := Stm.backup ()
     | `Signal (mutex, condition, spurious), _ ->
       Mutex.lock mutex;
       spurious := false;
@@ -136,10 +160,11 @@ done
 ;;
 
 
-let main_loop () =
+let main_loop _args ~state =
   Sys.catch_break true;
-  let t_proto = Thread.create Pide_slave.loop stm_queue in
-  let t_stm = Thread.create consumer_thread () in
+  Pide_document.initialize_state state;
+  let t_proto = Thread.create Pide_protocol.loop stm_queue in
+  let t_stm = Thread.create consumer_thread state in
   Thread.join t_proto;
   Thread.join t_stm
 

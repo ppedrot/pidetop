@@ -12,7 +12,6 @@ Pide_printer
 Pide_document
 Coq_input
 Pide_protocol
-Pide_slave
 Pide_goalprint
 Dependecy_printer
 Error_printer
