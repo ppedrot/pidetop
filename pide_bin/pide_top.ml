@@ -1,13 +1,16 @@
-let () = Coqtop.toploop_init := (fun coq_opts extra_args ->
+let pidetop_init ~opts extra_args =
+  let open Coqargs in
   Dumpglob.feedback_glob ();
   Flags.quiet := true;
-  let coq_opts = { coq_opts with
-    Coqargs.stm_flags =
-      { coq_opts.Coqargs.stm_flags with
-          Stm.AsyncOpts.async_proofs_full = true;
-          Stm.AsyncOpts.async_proofs_never_reopen_branch = true; } } in
+  let opts = {
+    opts with
+    stm_flags =
+      { opts.stm_flags with
+        Stm.AsyncOpts.async_proofs_full = true;
+        Stm.AsyncOpts.async_proofs_never_reopen_branch = true; }
+  } in
   Hook.set Stm.unreachable_state_hook
-    (fun ~doc id (e, info) ->
+    (fun ~doc:_ id (e, info) ->
       match e with
         | Sys.Break -> ()
         | _ -> Feedback.(feedback ~id Processed));
@@ -16,7 +19,7 @@ let () = Coqtop.toploop_init := (fun coq_opts extra_args ->
   Pide_flags.pide_slave := true;
   AsyncTaskQueue.async_proofs_flags_for_workers := ["-feedback-glob"];
   Stm.ProofTask.name := "pideproofworker";
-  coq_opts, extra_args)
+  opts, extra_args
 
 module SidMap = Map.Make(Stateid)
 let delayed_queries : Pide_document.task list SidMap.t ref = ref SidMap.empty
@@ -28,7 +31,7 @@ let delay_query_until_ready stateid q =
     delayed_queries := SidMap.add stateid [q] !delayed_queries
 
 let stm_queue = TQueue.create ()
-let () = Hook.set Stm.state_ready_hook (fun ~doc stateid ->
+let () = Hook.set Stm.state_ready_hook (fun ~doc:_ stateid ->
   try
     let queries = SidMap.find stateid !delayed_queries in
     List.iter (fun query -> TQueue.push stm_queue (query :> Pide_document.task))
@@ -160,7 +163,7 @@ done
 ;;
 
 
-let main_loop _args ~state =
+let main_loop ~opts ~state =
   Sys.catch_break true;
   Pide_document.initialize_state state;
   let t_proto = Thread.create Pide_protocol.loop stm_queue in
@@ -168,6 +171,6 @@ let main_loop _args ~state =
   Thread.join t_proto;
   Thread.join t_stm
 
-
-let () = Coqtop.toploop_run := main_loop
+let () =
+  Coqtop.(start_coq { init = pidetop_init; run = main_loop; })
 

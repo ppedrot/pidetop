@@ -1,17 +1,9 @@
 module W = AsyncTaskQueue.MakeWorker(Stm.ProofTask)()
 
-let () = Coqtop.toploop_init := (fun opts args ->
-        Flags.quiet := true;
-        W.init_stdout ();
-        opts, args)
-
-let () = Coqtop.toploop_run := (fun _ ~state:_ -> W.main_loop ())
-
-
 (* TODO: This was removed in feature/goalprint_overlay, not sure if it still is
  * necessary, in particular the unreachable_state_hook.
  *)
-let () = 
+let () =
   Hook.set Stm.unreachable_state_hook
     (fun ~doc:_ id (e, info) ->
       match e with
@@ -29,5 +21,7 @@ let () =
              (Proof_global.proof_of_state proof)
          with Proof_global.NoCurrentProof -> ())
 
-;;
+let () =
+  WorkerLoop.start ~init:W.init_stdout ~loop:W.main_loop
+
 

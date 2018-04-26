@@ -1,4 +1,0 @@
-install-toploop: all byte
-	mkdir -p $(COQTOPINSTALL)/
-	$(foreach f, $(CMXSFILES) $(CMAFILES), \
-            install -m 0644 $(f) $(COQTOPINSTALL)/ &&) true

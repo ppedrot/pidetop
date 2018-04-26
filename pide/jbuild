@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(library
+ ((name pidetop)
+  (synopsis "PIDE support for Coq")
+  (wrapped false)
+  (flags (-rectypes))
+  (libraries (coq.toplevel))))

@@ -1,0 +1,19 @@
+(jbuild_version 1)
+
+(executable
+ ((name pideproofworker_top)
+  (public_name pideproofworker)
+  (package pidetop)
+  (modules (pideproofworker_top))
+  (libraries (pidetop))
+  (flags -rectypes)
+  (link_flags (-linkall -cclib -lcoqrun))))
+
+(executable
+ ((name pide_top)
+  (public_name pidetop)
+  (package pidetop)
+  (modules (pide_top))
+  (libraries (pidetop))
+  (flags -rectypes)
+  (link_flags (-linkall -cclib -lcoqrun))))
