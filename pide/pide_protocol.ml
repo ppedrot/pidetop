@@ -48,6 +48,9 @@ let abort_transaction stmq _ =
   Mutex.unlock interrupt_mutex
 
 let initialize_commands () =
+
+  register_protocol_command "exit" (fun _ _ -> exit 0);
+
   register_protocol_command "echo" (fun _ args ->
      List.iter (fun s -> writeln Position.none (Pide_xml.Encode.string s)) args);
 
