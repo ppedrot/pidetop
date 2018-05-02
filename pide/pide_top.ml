@@ -7,7 +7,7 @@ let () = Coqtop.toploop_init := (fun coq_opts extra_args ->
           Stm.AsyncOpts.async_proofs_full = true;
           Stm.AsyncOpts.async_proofs_never_reopen_branch = true; } } in
   Hook.set Stm.unreachable_state_hook
-    (fun id (e, info) ->
+    (fun ~doc id (e, info) ->
       match e with
         | Sys.Break -> ()
         | _ -> Feedback.(feedback ~id Processed));
@@ -28,7 +28,7 @@ let delay_query_until_ready stateid q =
     delayed_queries := SidMap.add stateid [q] !delayed_queries
 
 let stm_queue = TQueue.create ()
-let () = Hook.set Stm.state_ready_hook (fun stateid ->
+let () = Hook.set Stm.state_ready_hook (fun ~doc stateid ->
   try
     let queries = SidMap.find stateid !delayed_queries in
     List.iter (fun query -> TQueue.push stm_queue (query :> Pide_document.task))
