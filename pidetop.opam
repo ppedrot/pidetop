@@ -1,0 +1,16 @@
+opam-version: "1.2"
+maintainer: "Enrico.Tassi@inria.fr"
+authors: ""
+homepage: "http://coqpide.bitbucket.org"
+bug-reports: ""
+dev-repo: ""
+license: "LGPL-2.1"
+
+build: [ [ "jbuilder" "build" "-p" name "-j" jobs ] ]
+
+depends: [
+  "coq"      { > 8.9 }
+  "jbuilder" { build }
+]
+
+available: [ [ ocaml-version >= "4.02.3"] ]
