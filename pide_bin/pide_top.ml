@@ -103,7 +103,7 @@ while true do
            else begin
             Coq_output.status position Coq_markup.status_running;
             ignore(protect(Stm.query ~doc:!current_doc ~at ~route:route_id)
-              (Pcoq.Gram.parsable (Stream.of_string text)))
+              (Pcoq.Parsable.make (Stream.of_string text)))
            end;
            if is_goal_print then
              Pide_document.goal_printed_at ~at ~exec:query_id
@@ -117,7 +117,7 @@ while true do
          (try
            last_edit_id := Some edit_id;
            Control.check_for_interrupt ();
-           let ast = Stm.parse_sentence ~doc:!current_doc tip (Pcoq.Gram.parsable (Stream.of_string text)) in
+           let ast = Stm.parse_sentence ~doc:!current_doc tip (Pcoq.Parsable.make (Stream.of_string text)) in
            let doc, tip, _ =
              Stm.add ~doc:!current_doc ~newtip:exec_id ~ontop:tip true ast in
            tip_exec_id := tip;
